@@ -41,8 +41,6 @@ To see a lamb at school.`)
 	}
 }
 
-
-
 func TestIsGzip(t *testing.T) {
 	inputBytes := []byte(`Mary had a little lamb,
 Its fleece was white as snow;
