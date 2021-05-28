@@ -5,12 +5,10 @@ package rsync
 
 import (
 	"crypto/md5"
-	"hash"
 	"io"
 )
 
-// If no BlockSize is specified in the RSync instance, this value is used.
-const DefaultBlockSize = 1024 * 6
+const BlockSize = 1024 * 6
 
 // Internal constant used in rolling checksum.
 const _M = 1 << 16
@@ -22,70 +20,42 @@ type BlockHash struct {
 	WeakHash   uint32
 }
 
-// Write signatures as they are generated.
-type SignatureWriter func(bl BlockHash) error
-
-// Properties to use while working with the rsync algorithm.
-// A single RSync should not be used concurrently as it may contain
-// internal buffers and hash sums.
-type RSync struct {
-	BlockSize int
-
-	// If this is nil an MD5 hash is used.
-	UniqueHasher hash.Hash
-
-	buffer []byte
-}
-
 // Calculate the signature of target.
-func (r *RSync) CreateSignature(target io.Reader, sw SignatureWriter) error {
-	if r.BlockSize <= 0 {
-		r.BlockSize = DefaultBlockSize
-	}
-	if r.UniqueHasher == nil {
-		r.UniqueHasher = md5.New()
-	}
+func CreateSignature(target io.Reader) ([]BlockHash, error) {
 	var err error
 	var n int
-
-	minBufferSize := r.BlockSize
-	if len(r.buffer) < minBufferSize {
-		r.buffer = make([]byte, minBufferSize)
-	}
-	buffer := r.buffer
+	buffer := make([]byte, BlockSize)
+	result := make([]BlockHash, 0)
 
 	var block []byte
 	loop := true
 	var index uint64
 	for loop {
-		n, err = io.ReadAtLeast(target, buffer, r.BlockSize)
+		n, err = io.ReadAtLeast(target, buffer, BlockSize)
 		if err != nil {
 			// n == 0.
 			if err == io.EOF {
-				return nil
+				return result, nil
 			}
 			if err != io.ErrUnexpectedEOF {
-				return err
+				return nil, err
 			}
 			// n > 0.
 			loop = false
 		}
 		block = buffer[:n]
 		weak, _, _ := βhash(block)
-		err = sw(BlockHash{StrongHash: r.uniqueHash(block), WeakHash: weak, Index: index})
-		if err != nil {
-			return err
-		}
+		result = append(result, BlockHash{StrongHash: uniqueHash(block), WeakHash: weak, Index: index})
 		index++
 	}
-	return nil
+	return result, nil
 }
 
 // Use a more unique way to identify a set of bytes.
-func (r *RSync) uniqueHash(v []byte) []byte {
-	r.UniqueHasher.Reset()
-	r.UniqueHasher.Write(v)
-	return r.UniqueHasher.Sum(nil)
+func uniqueHash(v []byte) []byte {
+	h := md5.New()
+	h.Write(v)
+	return h.Sum(nil)
 }
 
 // Use a faster way to identify a set of bytes.
