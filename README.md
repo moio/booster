@@ -24,9 +24,12 @@ VERSION:
    0.1
 
 COMMANDS:
-   compress  compresses standard input with go's gzip to standard output
-   check     decompresses and recompresses standard input with go's gzip. Exits with 0 if recompression was transparent
-   help, h   Shows a list of commands or help for one command
+   compress        compresses a file with go's gzip to standard output
+   decompress      decompresses a file with go's gzip to standard output
+   isgzip          Exists with 0 if input file is gzipped
+   recompressible  decompresses and recompresses a file with go's gzip. Exits with 0 if recompression was transparent
+   diff            creates a delta via the rsync algorithm between two files
+   help, h         Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --help, -h     show help
