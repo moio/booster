@@ -64,7 +64,7 @@ To see a lamb at school.`)
 	compressedBytes := compressed.Bytes()
 	compressedReader := bytes.NewReader(compressedBytes)
 
-	correct, err := IsRecompressible(compressedReader)
+	correct, err := Recompressible(compressedReader)
 	if err != nil {
 		t.Fatal(err)
 	}

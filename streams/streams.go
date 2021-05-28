@@ -41,9 +41,9 @@ func Decompress(reader io.Reader, writer io.Writer) error {
 	return nil
 }
 
-// IsRecompressible decompresses bytes from a reader and checks whether they can be decompressed and recompressed to
+// Recompressible decompresses bytes from a reader and checks whether they can be decompressed and recompressed to
 // get the same archive as a result
-func IsRecompressible(reader io.Reader) (bool, error) {
+func Recompressible(reader io.Reader) (bool, error) {
 	// stdin -> tee -> originalHash
 	//           |---> gzip reader -> gzip writer -> pipe -> recompressedHash
 

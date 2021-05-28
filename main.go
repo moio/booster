@@ -32,10 +32,10 @@ func main() {
 			Action:    decompress,
 		},
 		cli.Command{
-			Name:      "check",
+			Name:      "recompressible",
 			Usage:     "decompresses and recompresses a file with go's gzip. Exits with 0 if recompression was transparent",
 			ArgsUsage: "[filename (default stdin)]",
-			Action:    check,
+			Action:    recompressible,
 		},
 	}
 
@@ -104,7 +104,7 @@ func decompress(ctx *cli.Context) error {
 	return streams.Decompress(input, output)
 }
 
-func check(ctx *cli.Context) error {
+func recompressible(ctx *cli.Context) error {
 	var input io.Reader
 	if len(ctx.Args()) == 0 {
 		input = os.Stdin
@@ -116,7 +116,7 @@ func check(ctx *cli.Context) error {
 		}
 	}
 
-	result, err := streams.IsRecompressible(input)
+	result, err := streams.Recompressible(input)
 	if err != nil {
 		return err
 	}
