@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
-	"crypto/md5"
 	"fmt"
-
+	"github.com/moio/regsync/streams"
 	"io"
+
 	"os"
 
 	"github.com/pkg/errors"
@@ -21,14 +19,16 @@ func main() {
 
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name:   "compress",
-			Usage:  "compresses standard input with go's gzip to standard output",
-			Action: compress,
+			Name:      "compress",
+			Usage:     "compresses standard input with go's gzip to standard output",
+			ArgsUsage: "[filename (default stdin)] [output file (default filename.gz or stdout)]",
+			Action:    compress,
 		},
 		cli.Command{
-			Name:   "check",
-			Usage:  "decompresses and recompresses standard input with go's gzip. Exits with 0 if recompression was transparent",
-			Action: check,
+			Name:      "check",
+			Usage:     "decompresses and recompresses standard input with go's gzip. Exits with 0 if recompression was transparent",
+			ArgsUsage: "[filename (default stdin)]",
+			Action:    check,
 		},
 	}
 
@@ -39,70 +39,50 @@ func main() {
 }
 
 func compress(ctx *cli.Context) error {
-	buf := make([]byte, 1024*1024)
-	w := gzip.NewWriter(os.Stdout)
+	var input io.Reader
+	var output io.Writer
+	if len(ctx.Args()) == 0 {
+		input = os.Stdin
+		output = os.Stdout
+	} else {
+		var err error
+		input, err = os.Open(ctx.Args().First())
+		if err != nil {
+			return err
+		}
 
-	_, err := io.CopyBuffer(w, os.Stdin, buf)
-	if err != nil {
-		return errors.Wrap(err, "error while compressing stream")
+		outputName := ctx.Args().First() + ".gz"
+		if len(ctx.Args()) > 1 {
+			outputName = ctx.Args().Get(1)
+		}
+
+		output, err = os.Create(outputName)
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := w.Close(); err != nil {
-		return errors.Wrap(err, "error while closing compressed stream")
-	}
-	return nil
+	return streams.Compress(input, output)
 }
 
 func check(ctx *cli.Context) error {
-	// stdin -> tee -> originalHash
-	//           |---> gzip reader -> gzip writer -> pipe -> recompressedHash
-	buf := make([]byte, 1024*1024)
-	originalHash := md5.New()
-	tr := io.TeeReader(os.Stdin, originalHash)
-	gzipReader, err := gzip.NewReader(tr)
-	if err != nil {
-		return errors.Wrap(err, "error while closing compressed stream")
-	}
-
-	pipeReader, pipeWriter := io.Pipe()
-
-	result := make(chan error, 1)
-	go func(result chan error) {
-		buf2 := make([]byte, 1024*1024)
-		gzipWriter := gzip.NewWriter(pipeWriter)
-		_, err := io.CopyBuffer(gzipWriter, gzipReader, buf2)
+	var input io.Reader
+	if len(ctx.Args()) == 0 {
+		input = os.Stdin
+	} else {
+		var err error
+		input, err = os.Open(ctx.Args().First())
 		if err != nil {
-			result <- errors.Wrap(err, "error while recompressing stream")
+			return err
 		}
-
-		if err := gzipReader.Close(); err != nil {
-			result <- errors.Wrap(err, "error while closing recompressing stream")
-		}
-		if err := gzipWriter.Close(); err != nil {
-			result <- errors.Wrap(err, "error while closing recompressing stream")
-		}
-		if err := pipeWriter.Close(); err != nil {
-			result <- errors.Wrap(err, "error while closing recompressing stream")
-		}
-		result <- nil
-	}(result)
-
-	recompressedHash := md5.New()
-	_, err = io.CopyBuffer(recompressedHash, pipeReader, buf)
-	if err != nil {
-		return errors.Wrap(err, "error while hashing stream")
 	}
 
-	if err := pipeReader.Close(); err != nil {
-		return errors.Wrap(err, "error while close hashing stream")
-	}
-
-	err = <-result
+	result, err := streams.IsRecompressible(input)
 	if err != nil {
 		return err
 	}
 
-	if !bytes.Equal(originalHash.Sum(nil), recompressedHash.Sum(nil)) {
+	if !result {
 		return errors.New("Archive is NOT reconstructable!")
 	}
 
