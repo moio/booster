@@ -41,6 +41,18 @@ func Decompress(reader io.Reader, writer io.Writer) error {
 	return nil
 }
 
+// IsGzip returns true if the reader has a gzip file
+func IsGzip(reader io.Reader) (bool, error) {
+	_, err := gzip.NewReader(reader)
+	if err == gzip.ErrHeader || err == io.EOF {
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, "error while opening compressed stream")
+	}
+	return true, nil
+}
+
 // Recompressible decompresses bytes from a reader and checks whether they can be decompressed and recompressed to
 // get the same archive as a result
 func Recompressible(reader io.Reader) (bool, error) {
