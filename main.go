@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/moio/regsync/streams"
 	"io"
+	"strings"
 
 	"os"
 
@@ -23,6 +24,12 @@ func main() {
 			Usage:     "compresses a file with go's gzip to standard output",
 			ArgsUsage: "[filename (default stdin)] [output file (default filename.gz or stdout)]",
 			Action:    compress,
+		},
+		cli.Command{
+			Name:      "decompress",
+			Usage:     "decompresses a file with go's gzip to standard output",
+			ArgsUsage: "[filename (default stdin)] [output file (default filename witout .gz or stdout)]",
+			Action:    decompress,
 		},
 		cli.Command{
 			Name:      "check",
@@ -63,6 +70,38 @@ func compress(ctx *cli.Context) error {
 	}
 
 	return streams.Compress(input, output)
+}
+
+func decompress(ctx *cli.Context) error {
+	var input io.Reader
+	var output io.Writer
+	if len(ctx.Args()) == 0 {
+		input = os.Stdin
+		output = os.Stdout
+	} else {
+		inputName := ctx.Args().First()
+		var err error
+		input, err = os.Open(inputName)
+		if err != nil {
+			return err
+		}
+
+		var outputName string
+		if len(ctx.Args()) > 1 {
+			outputName = ctx.Args().Get(1)
+		} else if strings.HasSuffix(inputName, ".gz") {
+			outputName = strings.TrimSuffix(inputName, ".gz")
+		} else {
+			outputName = inputName + "-decompressed"
+		}
+
+		output, err = os.Create(outputName)
+		if err != nil {
+			return err
+		}
+	}
+
+	return streams.Decompress(input, output)
 }
 
 func check(ctx *cli.Context) error {

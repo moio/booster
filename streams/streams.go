@@ -23,6 +23,24 @@ func Compress(reader io.Reader, writer io.Writer) error {
 	return nil
 }
 
+// Decompress takes all bytes from a reader and ungzips them into a writer
+func Decompress(reader io.Reader, writer io.Writer) error {
+	buf := make([]byte, 1024*1024)
+	gzipReader, err := gzip.NewReader(reader)
+	if err != nil {
+		errors.Wrap(err, "error while opening decompression stream")
+	}
+	_, err = io.CopyBuffer(writer, gzipReader, buf)
+	if err != nil {
+		return errors.Wrap(err, "error while decompressing stream")
+	}
+
+	if err := gzipReader.Close(); err != nil {
+		return errors.Wrap(err, "error while closing decompressing stream")
+	}
+	return nil
+}
+
 // IsRecompressible decompresses bytes from a reader and checks whether they can be decompressed and recompressed to
 // get the same archive as a result
 func IsRecompressible(reader io.Reader) (bool, error) {
