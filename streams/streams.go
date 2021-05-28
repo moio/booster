@@ -28,7 +28,7 @@ func Decompress(reader io.Reader, writer io.Writer) error {
 	buf := make([]byte, 1024*1024)
 	gzipReader, err := gzip.NewReader(reader)
 	if err != nil {
-		errors.Wrap(err, "error while opening decompression stream")
+		return errors.Wrap(err, "error while opening decompression stream")
 	}
 	_, err = io.CopyBuffer(writer, gzipReader, buf)
 	if err != nil {
