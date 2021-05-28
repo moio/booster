@@ -20,13 +20,13 @@ func main() {
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "compress",
-			Usage:     "compresses standard input with go's gzip to standard output",
+			Usage:     "compresses a file with go's gzip to standard output",
 			ArgsUsage: "[filename (default stdin)] [output file (default filename.gz or stdout)]",
 			Action:    compress,
 		},
 		cli.Command{
 			Name:      "check",
-			Usage:     "decompresses and recompresses standard input with go's gzip. Exits with 0 if recompression was transparent",
+			Usage:     "decompresses and recompresses a file with go's gzip. Exits with 0 if recompression was transparent",
 			ArgsUsage: "[filename (default stdin)]",
 			Action:    check,
 		},
@@ -83,9 +83,9 @@ func check(ctx *cli.Context) error {
 	}
 
 	if !result {
-		return errors.New("Archive is NOT reconstructable!")
+		return errors.New("Archive is NOT recompressible!")
 	}
 
-	fmt.Println("Archive is reconstructable!")
+	fmt.Println("Archive is recompressible!")
 	return nil
 }
