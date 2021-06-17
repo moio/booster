@@ -1,10 +1,9 @@
 package main
 
 import (
-	"encoding/gob"
 	"fmt"
-	"github.com/moio/regsync/rsync"
 	"github.com/moio/regsync/streams"
+	"github.com/moio/regsync/wharf"
 	"io"
 	"strings"
 
@@ -48,12 +47,12 @@ func main() {
 		},
 		cli.Command{
 			Name:      "diff",
-			Usage:     "creates a delta via the rsync algorithm between two files",
-			ArgsUsage: "filename1 filename2 [diff_filename (default stdout)]",
+			Usage:     "creates a delta via the wharf library between two directories",
+			ArgsUsage: "dirname1 dirname2 [diff_filename (default stdout)]",
 			Action:    diff,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 2 {
-					return errors.New("Usage: regsync filename1 filename2 [diff_filename (default stdout)]")
+					return errors.New("Usage: regsync diff dirname1 dirname2 [diff_filename (default stdout)]")
 				}
 				return nil
 			},
@@ -179,19 +178,22 @@ func recompressible(ctx *cli.Context) error {
 }
 
 func diff(ctx *cli.Context) error {
-	first, err := os.Open(ctx.Args().First())
+	path1 := ctx.Args().First()
+	info1, err := os.Stat(path1)
 	if err != nil {
 		return err
 	}
+	if !info1.IsDir() {
+		return errors.Errorf("%v is not a directory", path1)
+	}
 
-	signature, err := rsync.CreateSignature(first)
+	path2 := ctx.Args().Get(1)
+	info2, err := os.Stat(path2)
 	if err != nil {
 		return err
 	}
-
-	second, err := os.Open(ctx.Args().Get(1))
-	if err != nil {
-		return err
+	if !info2.IsDir() {
+		return errors.Errorf("%v is not a directory", path2)
 	}
 
 	var output io.Writer
@@ -204,14 +206,5 @@ func diff(ctx *cli.Context) error {
 		}
 	}
 
-	enc := gob.NewEncoder(output)
-	writer := func(op rsync.Operation) error {
-		err := enc.Encode(op)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	return rsync.CreateDelta(second, signature, writer)
+	return wharf.CreatePatch(path1, path2, output)
 }
