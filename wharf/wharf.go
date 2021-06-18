@@ -13,35 +13,34 @@ import (
 	_ "github.com/itchio/wharf/compressors/cbrotli"
 )
 
-func CreatePatch(path1 string, path2 string, target io.Writer) (err error) {
-
+func CreatePatch(oldPath string, newPath string, target io.Writer) (err error) {
 	// code adapted from the butler project, https://github.com/itchio/butler
-	targetSignature := &pwr.SignatureInfo{}
+	oldSignature := &pwr.SignatureInfo{}
 
-	targetSignature.Container, err = tlc.WalkDir(path1, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
+	oldSignature.Container, err = tlc.WalkDir(oldPath, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
 	if err != nil {
-		return errors.Wrapf(err, "walking %v as directory", path1)
+		return errors.Wrapf(err, "walking %v as directory", oldPath)
 	}
-	targetPool := fspool.New(targetSignature.Container, path1)
+	oldPool := fspool.New(oldSignature.Container, oldPath)
 
-	targetSignature.Hashes, err = pwr.ComputeSignature(context.Background(), targetSignature.Container, targetPool, &state.Consumer{})
+	oldSignature.Hashes, err = pwr.ComputeSignature(context.Background(), oldSignature.Container, oldPool, &state.Consumer{})
 	if err != nil {
-		return errors.Wrapf(err, "computing signature of %v", path1)
+		return errors.Wrapf(err, "computing signature of %v", oldPath)
 	}
 
-	var sourceContainer *tlc.Container
-	sourceContainer, err = tlc.WalkDir(path2, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
+	var newContainer *tlc.Container
+	newContainer, err = tlc.WalkDir(newPath, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
 	if err != nil {
-		return errors.Wrapf(err, "walking %v as directory", path2)
+		return errors.Wrapf(err, "walking %v as directory", newPath)
 	}
-	sourcePool := fspool.New(sourceContainer, path2)
+	newPool := fspool.New(newContainer, newPath)
 
 	dctx := &pwr.DiffContext{
-		SourceContainer: sourceContainer,
-		Pool:            sourcePool,
+		SourceContainer: newContainer,
+		Pool:            newPool,
 
-		TargetContainer: targetSignature.Container,
-		TargetSignature: targetSignature.Hashes,
+		TargetContainer: oldSignature.Container,
+		TargetSignature: oldSignature.Hashes,
 
 		Consumer:    &state.Consumer{},
 		Compression: &pwr.CompressionSettings{

@@ -48,11 +48,11 @@ func main() {
 		cli.Command{
 			Name:      "diff",
 			Usage:     "creates a delta via the wharf library between two directories",
-			ArgsUsage: "dirname1 dirname2 [diff_filename (default stdout)]",
+			ArgsUsage: "old_dir new_dir [diff_filename (default stdout)]",
 			Action:    diff,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 2 {
-					return errors.New("Usage: regsync diff dirname1 dirname2 [diff_filename (default stdout)]")
+					return errors.New("Usage: regsync diff old_dir new_dir [diff_filename (default stdout)]")
 				}
 				return nil
 			},
@@ -178,22 +178,22 @@ func recompressible(ctx *cli.Context) error {
 }
 
 func diff(ctx *cli.Context) error {
-	path1 := ctx.Args().First()
-	info1, err := os.Stat(path1)
+	oldPath := ctx.Args().First()
+	oldInfo, err := os.Stat(oldPath)
 	if err != nil {
 		return err
 	}
-	if !info1.IsDir() {
-		return errors.Errorf("%v is not a directory", path1)
+	if !oldInfo.IsDir() {
+		return errors.Errorf("%v is not a directory", oldPath)
 	}
 
-	path2 := ctx.Args().Get(1)
-	info2, err := os.Stat(path2)
+	newPath := ctx.Args().Get(1)
+	newInfo	, err := os.Stat(newPath)
 	if err != nil {
 		return err
 	}
-	if !info2.IsDir() {
-		return errors.Errorf("%v is not a directory", path2)
+	if !newInfo.IsDir() {
+		return errors.Errorf("%v is not a directory", newPath)
 	}
 
 	var output io.Writer
@@ -206,5 +206,5 @@ func diff(ctx *cli.Context) error {
 		}
 	}
 
-	return wharf.CreatePatch(path1, path2, output)
+	return wharf.CreatePatch(oldPath, newPath, output)
 }
