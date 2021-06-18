@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/itchio/lake/tlc"
+	"github.com/moio/regsync/api"
 	"github.com/moio/regsync/streams"
 	"github.com/moio/regsync/wharf"
 	"io"
+	"net/http"
 	"strings"
 
 	"os"
@@ -53,6 +56,18 @@ func main() {
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 2 {
 					return errors.New("Usage: regsync diff old_dir new_dir [diff_filename (default stdout)]")
+				}
+				return nil
+			},
+		},
+		cli.Command{
+			Name:      "serve",
+			Usage:     "serves an HTTP API",
+			ArgsUsage: "dirname",
+			Action:    serve,
+			Before: func(c *cli.Context) error {
+				if len(c.Args()) < 1 {
+					return errors.New("Usage: regsync serve dirname")
 				}
 				return nil
 			},
@@ -206,5 +221,21 @@ func diff(ctx *cli.Context) error {
 		}
 	}
 
-	return wharf.CreatePatch(oldPath, newPath, output)
+	return wharf.CreatePatch(oldPath, tlc.KeepAllFilter, newPath, output)
+}
+
+func serve(ctx *cli.Context) error {
+	path := ctx.Args().First()
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return errors.Errorf("%v is not a directory", path)
+	}
+
+	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
+		api.Diff(path, writer, request)
+	})
+	return http.ListenAndServe(":8000", nil)
 }

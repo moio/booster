@@ -5,19 +5,18 @@ import (
 	"github.com/itchio/headway/state"
 	"github.com/itchio/lake/pools/fspool"
 	"github.com/itchio/lake/tlc"
+	_ "github.com/itchio/wharf/compressors/cbrotli"
 	"github.com/itchio/wharf/pwr"
 	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
-
-	_ "github.com/itchio/wharf/compressors/cbrotli"
 )
 
-func CreatePatch(oldPath string, newPath string, target io.Writer) (err error) {
+func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, target io.Writer) (err error) {
 	// code adapted from the butler project, https://github.com/itchio/butler
 	oldSignature := &pwr.SignatureInfo{}
 
-	oldSignature.Container, err = tlc.WalkDir(oldPath, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
+	oldSignature.Container, err = tlc.WalkDir(oldPath, tlc.WalkOpts{Filter: oldFilter})
 	if err != nil {
 		return errors.Wrapf(err, "walking %v as directory", oldPath)
 	}
