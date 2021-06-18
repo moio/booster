@@ -61,6 +61,18 @@ func main() {
 			},
 		},
 		cli.Command{
+			Name:      "apply",
+			Usage:     "applies a delta created with the wharf library to a directory",
+			ArgsUsage: "diff_filename dir",
+			Action:    apply,
+			Before: func(c *cli.Context) error {
+				if len(c.Args()) != 2 {
+					return errors.New("Usage: regsync apply diff_filename dir")
+				}
+				return nil
+			},
+		},
+		cli.Command{
 			Name:      "serve",
 			Usage:     "serves an HTTP API",
 			ArgsUsage: "dirname",
@@ -222,6 +234,22 @@ func diff(ctx *cli.Context) error {
 	}
 
 	return wharf.CreatePatch(oldPath, tlc.KeepAllFilter, newPath, output)
+}
+
+
+func apply(ctx *cli.Context) error {
+	patchPath := ctx.Args().First()
+
+	dirPath := ctx.Args().Get(1)
+	newInfo	, err := os.Stat(dirPath)
+	if err != nil {
+		return err
+	}
+	if !newInfo.IsDir() {
+		return errors.Errorf("%v is not a directory", dirPath)
+	}
+
+	return wharf.Apply(patchPath, dirPath)
 }
 
 func serve(ctx *cli.Context) error {

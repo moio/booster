@@ -5,8 +5,12 @@ import (
 	"github.com/itchio/headway/state"
 	"github.com/itchio/lake/pools/fspool"
 	"github.com/itchio/lake/tlc"
+	"github.com/itchio/savior/filesource"
 	_ "github.com/itchio/wharf/compressors/cbrotli"
+	_ "github.com/itchio/wharf/decompressors/cbrotli"
 	"github.com/itchio/wharf/pwr"
+	"github.com/itchio/wharf/pwr/bowl"
+	"github.com/itchio/wharf/pwr/patcher"
 	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
@@ -51,6 +55,45 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, targe
 	err = dctx.WritePatch(context.Background(), target, ioutil.Discard)
 	if err != nil {
 		return errors.Wrap(err, "computing and writing patch")
+	}
+
+	return nil
+}
+
+func Apply(patch string, old string) error {
+	stagingDir := "staging"
+
+	patchSource, err := filesource.Open(patch)
+	if err != nil {
+		return errors.WithMessage(err, "opening patch")
+	}
+
+	p, err := patcher.New(patchSource, &state.Consumer{})
+	if err != nil {
+		return errors.WithMessage(err, "creating patcher")
+	}
+
+	targetPool := fspool.New(p.GetTargetContainer(), old)
+
+	var bwl bowl.Bowl
+	bwl, err = bowl.NewOverlayBowl(bowl.OverlayBowlParams{
+		SourceContainer: p.GetSourceContainer(),
+		TargetContainer: p.GetTargetContainer(),
+		OutputFolder:    old,
+		StageFolder:     stagingDir,
+	})
+	if err != nil {
+		return errors.WithMessage(err, "creating overlay bowl")
+	}
+
+	err = p.Resume(nil, targetPool, bwl)
+	if err != nil {
+		return errors.WithMessage(err, "patching")
+	}
+
+	err = bwl.Commit()
+	if err != nil {
+		return errors.WithMessage(err, "committing bowl")
 	}
 
 	return nil
