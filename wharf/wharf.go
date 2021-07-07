@@ -45,7 +45,7 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, targe
 		TargetContainer: oldSignature.Container,
 		TargetSignature: oldSignature.Hashes,
 
-		Consumer:    &state.Consumer{},
+		Consumer: &state.Consumer{},
 		Compression: &pwr.CompressionSettings{
 			Algorithm: pwr.CompressionAlgorithm_BROTLI,
 			Quality:   3, // standard for brotli

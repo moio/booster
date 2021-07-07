@@ -74,14 +74,26 @@ func main() {
 		},
 		cli.Command{
 			Name:      "serve",
-			Usage:     "serves an HTTP API",
-			ArgsUsage: "dirname",
+			Usage:     "serves the booster HTTP API",
+			ArgsUsage: "dir",
 			Action:    serve,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 1 {
-					return errors.New("Usage: regsync serve dirname")
+					return errors.New("Usage: regsync serve dir")
 				}
 				return nil
+			},
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "port",
+					Usage: "TCP port for the API (default 8000)",
+					Value: 8000,
+				},
+				cli.StringFlag{
+					Name:  "primary",
+					Usage: "http address of the primary, if any",
+					Value: "",
+				},
 			},
 		},
 	}
@@ -215,7 +227,7 @@ func diff(ctx *cli.Context) error {
 	}
 
 	newPath := ctx.Args().Get(1)
-	newInfo	, err := os.Stat(newPath)
+	newInfo, err := os.Stat(newPath)
 	if err != nil {
 		return err
 	}
@@ -236,12 +248,11 @@ func diff(ctx *cli.Context) error {
 	return wharf.CreatePatch(oldPath, tlc.KeepAllFilter, newPath, output)
 }
 
-
 func apply(ctx *cli.Context) error {
 	patchPath := ctx.Args().First()
 
 	dirPath := ctx.Args().Get(1)
-	newInfo	, err := os.Stat(dirPath)
+	newInfo, err := os.Stat(dirPath)
 	if err != nil {
 		return err
 	}
@@ -265,5 +276,10 @@ func serve(ctx *cli.Context) error {
 	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
 		api.Diff(path, writer, request)
 	})
-	return http.ListenAndServe(":8000", nil)
+
+	http.HandleFunc("/sync", func(writer http.ResponseWriter, request *http.Request) {
+		primary := ctx.String("primary")
+		api.Sync(path, primary, writer, request)
+	})
+	return http.ListenAndServe(fmt.Sprintf(":%v", ctx.Int("port")), nil)
 }

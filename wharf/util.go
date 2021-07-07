@@ -8,11 +8,11 @@ type AcceptListFilter struct {
 	acceptList []string
 }
 
-func NewAcceptListFilter(acceptList []string) (*AcceptListFilter)  {
-	return &AcceptListFilter{acceptList: acceptList};
+func NewAcceptListFilter(acceptList []string) *AcceptListFilter {
+	return &AcceptListFilter{acceptList: acceptList}
 }
 
-func (e*AcceptListFilter) Filter(name string) tlc.FilterResult  {
+func (e *AcceptListFilter) Filter(name string) tlc.FilterResult {
 	for _, pattern := range e.acceptList {
 		if pattern == name {
 			return tlc.FilterKeep
@@ -27,7 +27,7 @@ type NopWriteCloser struct {
 	writer io.Writer
 }
 
-func PreventClosing(w io.Writer) (io.Writer) {
+func PreventClosing(w io.Writer) *NopWriteCloser {
 	return &NopWriteCloser{writer: w}
 }
 

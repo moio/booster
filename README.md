@@ -1,37 +1,37 @@
-# regsync
+# 🚀 booster
 
-## Objective
-Develop code to make it easier/less resource intensive to maintain a set of images in sync from a "master" registry to a set of "replica" registries.
+Makes synchronization of container images between registries faster.
 
-Replicas could potentially be many, geographically distributed, and with limited available bandwidth to the master.
+## Requirements
 
-## Status
+ - Two or more container registries to synchronize
+ - Access to their backing storage directory (for now)
 
-An ongoing [DESIGN](DESIGN.md) document and tools for experimentation of ideas.
+## Demo
 
-## Current code status
+Start two registry instances backed by local directories:
+```shell
+docker run -d \
+  -p 5001:5001 \
+  -v `pwd`/primary:/var/lib/registry \
+  registry:2
 
-A commandline tool to experiment:
-
+docker run -d \
+  -p 5002:5002 \
+  -v `pwd`/replica:/var/lib/registry \
+  registry:2
 ```
-NAME:
-   regsync - Utility to synchronize container image registries
 
-USAGE:
-   regsync [global options] command [command options] [arguments...]
+Start a companion booster instance for each:
 
-VERSION:
-   0.1
+```shell
+git clone git@github.com:moio/booster.git
+cd booster
+go run main.go serve --port 5011 ../primary &
+go run main.go serve --port 5012 --primary=http://localhost:5001 ../replica &
+```
 
-COMMANDS:
-   compress        compresses a file with go's gzip to standard output
-   decompress      decompresses a file with go's gzip to standard output
-   isgzip          Exists with 0 if input file is gzipped
-   recompressible  decompresses and recompresses a file with go's gzip. Exits with 0 if recompression was transparent
-   diff            creates a delta via the rsync algorithm between two files
-   help, h         Shows a list of commands or help for one command
-
-GLOBAL OPTIONS:
-   --help, -h     show help
-   --version, -v  print the version
+Synchronize replica with primary:
+```shell
+curl http://localhost:5012/sync
 ```

@@ -10,3 +10,5 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/urfave/cli v1.22.5
 )
+
+replace github.com/itchio/lake => github.com/moio/lake v0.0.0-20210618151745-df1660885716
