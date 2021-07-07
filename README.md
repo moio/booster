@@ -2,6 +2,8 @@
 
 Makes synchronization of container images between registries faster.
 
+![build status](https://github.com/moio/booster/actions/workflows/checks.yml/badge.svg)
+
 ## Requirements
 
  - Two or more container registries to synchronize

@@ -1,0 +1,11 @@
+name: checks
+on: [push]
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions/setup-go@v1
+        with:
+          go-version: '1.16'
+      - run: test -z "$(gofmt -l -e ${{ github.workspace }} | tee /dev/stderr)"
