@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"github.com/itchio/lake/tlc"
-	"github.com/moio/regsync/api"
-	"github.com/moio/regsync/streams"
-	"github.com/moio/regsync/wharf"
+	"github.com/moio/booster/api"
+	"github.com/moio/booster/streams"
+	"github.com/moio/booster/wharf"
 	"io"
 	"net/http"
 	"strings"
@@ -18,8 +18,8 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "regsync"
-	app.Usage = "Utility to synchronize container image registries"
+	app.Name = "booster"
+	app.Usage = "Synchronizes container image registries efficiently"
 	app.Version = "0.1"
 	app.EnableBashCompletion = true
 
@@ -55,7 +55,7 @@ func main() {
 			Action:    diff,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 2 {
-					return errors.New("Usage: regsync diff old_dir new_dir [diff_filename (default stdout)]")
+					return errors.New("Usage: booster diff old_dir new_dir [diff_filename (default stdout)]")
 				}
 				return nil
 			},
@@ -67,7 +67,7 @@ func main() {
 			Action:    apply,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) != 2 {
-					return errors.New("Usage: regsync apply diff_filename dir")
+					return errors.New("Usage: booster apply diff_filename dir")
 				}
 				return nil
 			},
@@ -79,7 +79,7 @@ func main() {
 			Action:    serve,
 			Before: func(c *cli.Context) error {
 				if len(c.Args()) < 1 {
-					return errors.New("Usage: regsync serve dir")
+					return errors.New("Usage: booster serve dir")
 				}
 				return nil
 			},

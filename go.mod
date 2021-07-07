@@ -1,4 +1,4 @@
-module github.com/moio/regsync
+module github.com/moio/booster
 
 go 1.16
 

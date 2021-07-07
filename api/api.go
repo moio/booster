@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/moio/regsync/wharf"
+	"github.com/moio/booster/wharf"
 	"io"
 	"io/fs"
 	"io/ioutil"
