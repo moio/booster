@@ -12,3 +12,7 @@ require (
 )
 
 replace github.com/itchio/lake => github.com/moio/lake v0.0.0-20210618151745-df1660885716
+
+replace github.com/itchio/wharf => github.com/moio/wharf v0.0.0-20210708091113-5b942a14d1d5
+
+replace github.com/itchio/savior => github.com/moio/savior v0.0.0-20210708090523-e76614c56ce5
