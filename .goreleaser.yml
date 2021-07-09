@@ -14,3 +14,22 @@ builds:
       - goos: windows
         goarch: arm64
     binary: "{{ .ProjectName }}_v{{ .Version }}"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/moio/{{.ProjectName}}:{{ .Tag }}"
+      - "ghcr.io/moio/{{.ProjectName}}:v{{ .Major }}"
+      - "ghcr.io/moio/{{.ProjectName}}:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/moio/{{.ProjectName}}:latest"
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--platform=linux/arm64"
+    extra_files:
+      - tmp

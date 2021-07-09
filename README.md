@@ -11,29 +11,52 @@ Makes synchronization of container images between registries faster.
 
 ## Demo
 
-Start two registry instances backed by local directories:
 ```shell
+
+# Start a "primary" registry backed by a local directory
 docker run -d \
-  -p 5001:5001 \
+  -p 5001:5000 \
   -v `pwd`/primary:/var/lib/registry \
   registry:2
 
+# Start a companion booster container for the primary
+PRIMARY_BOOSTER_ID=$( \
 docker run -d \
-  -p 5002:5002 \
+  -p 5002:5000 \
+  -v `pwd`/primary:/var/lib/registry \
+  ghcr.io/moio/booster:latest \
+) 
+
+
+# Start a "replica" registry backed by another local directory
+docker run -d \
+  -p 5003:5000 \
   -v `pwd`/replica:/var/lib/registry \
   registry:2
+
+# Start a companion booster container for the replica
+# Link it to the primary booster
+docker run -d \
+  -p 5004:5000 \
+  -v `pwd`/replica:/var/lib/registry \
+  --link $PRIMARY_BOOSTER_ID:primary-booster \
+  ghcr.io/moio/booster:latest --primary=http://primary-booster:5000
 ```
 
-Start a companion booster instance for each:
 
+Now replica can be synchronized to the primary's contents via:
 ```shell
-git clone git@github.com:moio/booster.git
-cd booster
-go run main.go serve --port 5011 ../primary &
-go run main.go serve --port 5012 --primary=http://localhost:5001 ../replica &
+curl http://localhost:5004/sync
 ```
 
-Synchronize replica with primary:
+
+
+## Hacking
+
+Building of release binaries, packages and Docker images is done via [goreleaser](https://goreleaser.com).
+
+For a snapshot build use:
+
 ```shell
-curl http://localhost:5012/sync
+goreleaser release --skip-publish --snapshot --rm-dist
 ```
