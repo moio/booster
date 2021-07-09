@@ -41,8 +41,8 @@ func main() {
 			Flags: []cli.Flag{
 				cli.IntFlag{
 					Name:  "port",
-					Usage: "TCP port for the API (default 8000)",
-					Value: 8000,
+					Usage: "TCP port for the API (default 5000)",
+					Value: 5000,
 				},
 				cli.StringFlag{
 					Name:  "primary",
