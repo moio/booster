@@ -11,6 +11,7 @@ Makes synchronization of container images between registries faster.
 
 ## Demo
 
+Set up a demo environment with two local Registry containers, each with its booster:
 ```shell
 
 # Start a "primary" registry backed by a local directory
@@ -43,12 +44,17 @@ docker run -d \
   ghcr.io/moio/booster:latest --primary=http://primary-booster:5000
 ```
 
+Load up the primary Registry with an image:
+```shell
+docker pull ubuntu:xenial-20210429
+docker image tag ubuntu:xenial-20210429 localhost:5001/ubuntu:xenial-20210429
+docker image push localhost:5001/ubuntu:xenial-20210429
+```
 
-Now replica can be synchronized to the primary's contents via:
+Synchronize the replica to the primary's contents via:
 ```shell
 curl http://localhost:5004/sync
 ```
-
 
 
 ## Hacking
