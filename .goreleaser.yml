@@ -31,5 +31,3 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--platform=linux/arm64"
-    extra_files:
-      - tmp
