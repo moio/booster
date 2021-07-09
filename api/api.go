@@ -84,7 +84,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 	}
 	h := string(bodyBytes)
 
-	err = wharf.Apply(primary+"/patch?hash=" + h, path)
+	err = wharf.Apply(primary+"/patch?hash="+h, path)
 	if err != nil {
 		bark(err, w)
 		return
@@ -103,7 +103,7 @@ func listFilesIn(path string) []string {
 }
 
 // hash computes a hash from two lists of file paths
-func hash(old []string, new []string) (string) {
+func hash(old []string, new []string) string {
 	h := sha512.New()
 	for _, f := range old {
 		io.WriteString(h, f)
