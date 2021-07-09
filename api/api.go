@@ -65,6 +65,6 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 
 func bark(err error, w http.ResponseWriter) {
 	w.WriteHeader(500)
-	fmt.Fprintf(w, "Unexpected error: %v", err)
+	fmt.Fprintf(w, "Unexpected error: %v\n", err)
 	log.Print(err)
 }
