@@ -44,8 +44,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf := make([]byte, 1024*1024*16)
-	_, err = io.CopyBuffer(patchFile, resp.Body, buf)
+	_, err = io.Copy(patchFile, resp.Body)
 	if err != nil {
 		bark(err, w)
 		return
@@ -61,6 +60,8 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 		bark(err, w)
 		return
 	}
+
+
 }
 
 func bark(err error, w http.ResponseWriter) {
