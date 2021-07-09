@@ -10,11 +10,20 @@ import (
 	"github.com/urfave/cli"
 )
 
+// set by goreleaser via -ldflags at build time
+// see https://golang.org/cmd/link/, https://goreleaser.com/customization/build/
+// Empty string means snapshot build
+var version string
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "booster"
 	app.Usage = "Synchronizes container image registries efficiently"
-	app.Version = "0.1"
+	if version != "" {
+		app.Version = version
+	} else {
+		app.Version = "snapshot"
+	}
 	app.EnableBashCompletion = true
 
 	app.Commands = []cli.Command{
