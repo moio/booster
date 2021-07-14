@@ -63,25 +63,25 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
 		f, err := os.Create(patchPath)
 		if err != nil {
-			return bark(err,"PrepareDiff: error while opening patch file", w)
+			return bark(err, "PrepareDiff: error while opening patch file", w)
 		}
 		oldFilter := wharf.NewAcceptListFilter(basedir, oldFiles)
 		newFilter := wharf.NewAcceptListFilter(basedir, newFiles)
 		err = wharf.CreatePatch(basedir, oldFilter.Filter, basedir, newFilter.Filter, wharf.PreventClosing(f))
 		if err != nil {
-			return bark(err,"PrepareDiff: error while creating patch", w)
+			return bark(err, "PrepareDiff: error while creating patch", w)
 		}
 		err = f.Close()
 		if err != nil {
-			return bark(err,"PrepareDiff: error while closing patch file", w)
+			return bark(err, "PrepareDiff: error while closing patch file", w)
 		}
 	}
 
 	// return the unique hash in the response
-	response, _ := json.Marshal(map[string]string{"hash" : h})
+	response, _ := json.Marshal(map[string]string{"hash": h})
 	_, err = w.Write(response)
 	if err != nil {
-		return bark(err,"PrepareDiff: error while writing response", w)
+		return bark(err, "PrepareDiff: error while writing response", w)
 	}
 
 	return err
@@ -94,7 +94,7 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	// sanitize input
 	_, err := regexp.MatchString("[0-9a-f]", h)
 	if err != nil {
-		return bark(errors.Errorf("invalid hash %v", h),"Diff: hash validation error", w)
+		return bark(errors.Errorf("invalid hash %v", h), "Diff: hash validation error", w)
 	}
 
 	http.ServeFile(w, r, path.Join(os.TempDir(), "booster", h))
@@ -128,17 +128,18 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 
 	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
-		return bark(err, "Sync: error while applying patch", w)}
+		return bark(err, "Sync: error while applying patch", w)
+	}
 
 	err = gzip.RecompressAllIn(path)
 	if err != nil {
 		return bark(err, "Sync: error while recompressing files", w)
 	}
 
-	json, _ := json.MarshalIndent(map[string]int64{"transferred_mb" : size/1024/1024}, "", "  ")
+	json, _ := json.MarshalIndent(map[string]int64{"transferred_mb": size / 1024 / 1024}, "", "  ")
 	_, err = w.Write(json)
 	if err != nil {
-		return bark(err,"Sync: error while writing response", w)
+		return bark(err, "Sync: error while writing response", w)
 	}
 
 	return nil

@@ -40,4 +40,3 @@ func (n *NopWriteCloser) Write(buf []byte) (int, error) {
 func (n *NopWriteCloser) Close() error {
 	return nil
 }
-
