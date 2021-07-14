@@ -73,13 +73,14 @@ func serve(ctx *cli.Context) error {
 		api.PrepareDiff(path, writer, request)
 	})
 
-	http.HandleFunc("/patch", func(writer http.ResponseWriter, request *http.Request) {
-		api.Patch(path, writer, request)
+	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
+		api.Diff(path, writer, request)
 	})
 
 	http.HandleFunc("/sync", func(writer http.ResponseWriter, request *http.Request) {
 		primary := ctx.String("primary")
 		api.Sync(path, primary, writer, request)
 	})
+
 	return http.ListenAndServe(fmt.Sprintf(":%v", ctx.Int("port")), nil)
 }

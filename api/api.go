@@ -62,8 +62,8 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, h)
 }
 
-// Patch serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
-func Patch(basedir string, w http.ResponseWriter, r *http.Request) {
+// Diff serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
+func Diff(basedir string, w http.ResponseWriter, r *http.Request) {
 	h := r.FormValue("hash")
 
 	// sanitize input
@@ -98,7 +98,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 	}
 	h := string(bodyBytes)
 
-	err = wharf.Apply(primary+"/patch?hash="+h, path)
+	err = wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
 		bark(err, w)
 		return
