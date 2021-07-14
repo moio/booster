@@ -56,6 +56,15 @@ Synchronize the replica to the primary's contents via:
 curl http://localhost:5004/sync
 ```
 
+Then push another image and synchronize again:
+```shell
+docker pull ubuntu:xenial-20210611
+docker image tag ubuntu:xenial-20210611 localhost:5001/ubuntu:xenial-20210611
+docker image push localhost:5001/ubuntu:xenial-20210611
+
+curl http://localhost:5004/sync
+```
+
 
 ## Hacking
 
