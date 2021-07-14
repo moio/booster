@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/sha512"
+	"encoding/json"
 	"fmt"
 	"github.com/moio/booster/gzip"
 	"github.com/moio/booster/wharf"
@@ -76,7 +77,12 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return the unique hash in the response
-	io.WriteString(w, h)
+	response, err := json.Marshal(map[string]string{"hash" : h})
+	if err != nil {
+		bark(err, w)
+		return
+	}
+	w.Write(response)
 }
 
 // Diff serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
@@ -113,7 +119,13 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 		bark(err, w)
 		return
 	}
-	h := string(bodyBytes)
+	var response map[string]string
+	err = json.Unmarshal(bodyBytes, &response)
+	if err != nil {
+		bark(err, w)
+		return
+	}
+	h := response["hash"]
 
 	err = wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
