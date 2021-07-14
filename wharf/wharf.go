@@ -18,7 +18,9 @@ import (
 	"path/filepath"
 )
 
-func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFilter tlc.FilterFunc, target io.Writer) (err error) {
+// CreatePatch writes a patch from files in oldPath filtered via oldFilter to files in newPath filtered via newFilter
+// and writes it to a writer
+func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFilter tlc.FilterFunc, writer io.Writer) (err error) {
 	// code adapted from the butler project, https://github.com/itchio/butler
 	oldSignature := &pwr.SignatureInfo{}
 
@@ -54,7 +56,7 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFi
 		},
 	}
 
-	err = dctx.WritePatch(context.Background(), target, ioutil.Discard)
+	err = dctx.WritePatch(context.Background(), writer, ioutil.Discard)
 	if err != nil {
 		return errors.Wrap(err, "computing and writing patch")
 	}
