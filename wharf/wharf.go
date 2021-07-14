@@ -14,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFilter tlc.FilterFunc, target io.Writer) (err error) {
@@ -61,8 +63,6 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFi
 }
 
 func Apply(patch string, old string) error {
-	stagingDir := "staging"
-
 	patchSource, err := filesource.Open(patch)
 	if err != nil {
 		return errors.WithMessage(err, "opening patch")
@@ -80,7 +80,7 @@ func Apply(patch string, old string) error {
 		SourceContainer: p.GetSourceContainer(),
 		TargetContainer: p.GetTargetContainer(),
 		OutputFolder:    old,
-		StageFolder:     stagingDir,
+		StageFolder:     filepath.Join(os.TempDir(), "booster", "staging"),
 	})
 	if err != nil {
 		return errors.WithMessage(err, "creating overlay bowl")
