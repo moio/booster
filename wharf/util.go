@@ -1,24 +1,26 @@
 package wharf
 
-import "github.com/itchio/lake/tlc"
+import (
+	"github.com/itchio/lake/tlc"
+	"path/filepath"
+)
 import "io"
 
 // AcceptListFilter only keeps files from an accept list
 type AcceptListFilter struct {
-	acceptList []string
+	basedir  string
+	accepted map[string]bool
 }
 
-func NewAcceptListFilter(acceptList []string) *AcceptListFilter {
-	return &AcceptListFilter{acceptList: acceptList}
+func NewAcceptListFilter(basedir string, accepted map[string]bool) *AcceptListFilter {
+	return &AcceptListFilter{basedir: basedir, accepted: accepted}
 }
 
 func (e *AcceptListFilter) Filter(name string) tlc.FilterResult {
-	for _, pattern := range e.acceptList {
-		if pattern == name {
-			return tlc.FilterKeep
-		}
+	relpath, _ := filepath.Rel(e.basedir, name)
+	if e.accepted[relpath] {
+		return tlc.FilterKeep
 	}
-
 	return tlc.FilterIgnore
 }
 
@@ -38,3 +40,4 @@ func (n *NopWriteCloser) Write(buf []byte) (int, error) {
 func (n *NopWriteCloser) Close() error {
 	return nil
 }
+

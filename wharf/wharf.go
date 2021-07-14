@@ -16,7 +16,7 @@ import (
 	"io/ioutil"
 )
 
-func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, target io.Writer) (err error) {
+func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFilter tlc.FilterFunc, target io.Writer) (err error) {
 	// code adapted from the butler project, https://github.com/itchio/butler
 	oldSignature := &pwr.SignatureInfo{}
 
@@ -32,7 +32,7 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, targe
 	}
 
 	var newContainer *tlc.Container
-	newContainer, err = tlc.WalkDir(newPath, tlc.WalkOpts{Filter: tlc.KeepAllFilter})
+	newContainer, err = tlc.WalkDir(newPath, tlc.WalkOpts{Filter: newFilter})
 	if err != nil {
 		return errors.Wrapf(err, "walking %v as directory", newPath)
 	}
