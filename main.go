@@ -69,8 +69,8 @@ func serve(ctx *cli.Context) error {
 		return errors.Errorf("%v is not a directory", path)
 	}
 
-	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
-		api.Diff(path, writer, request)
+	http.HandleFunc("/prepare_diff", func(writer http.ResponseWriter, request *http.Request) {
+		api.PrepareDiff(path, writer, request)
 	})
 
 	http.HandleFunc("/patch", func(writer http.ResponseWriter, request *http.Request) {

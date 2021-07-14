@@ -18,10 +18,10 @@ import (
 	"strings"
 )
 
-// Diff computes the patch between (decompressed) files in basedir and files passed in
+// PrepareDiff computes the patch between (decompressed) files in basedir and files passed in
 // the request body.
 // The result is cached in a temporary directory by hash, returned in the response body
-func Diff(basedir string, w http.ResponseWriter, r *http.Request) {
+func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) {
 	// determine old files, passed as parameter
 	oldFiles := map[string]bool{}
 	old := r.FormValue("old")
@@ -62,7 +62,7 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, h)
 }
 
-// Patch serves a patch previously computed via Diff. It expects a hash value as parameter
+// Patch serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
 func Patch(basedir string, w http.ResponseWriter, r *http.Request) {
 	h := r.FormValue("hash")
 
@@ -86,7 +86,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) {
 	}
 	old := sorted(gzip.ListDecompressedOnly(path))
 
-	resp, err := http.PostForm(primary+"/diff", url.Values{"old": {strings.Join(old, "\n")}})
+	resp, err := http.PostForm(primary+"/prepare_diff", url.Values{"old": {strings.Join(old, "\n")}})
 	if err != nil {
 		bark(err, w)
 		return
