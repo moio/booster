@@ -25,19 +25,17 @@ func main() {
 	}
 	app.EnableBashCompletion = true
 	app.Action = serve
-	app.ArgsUsage = "dir"
 
-	app.Before = func(c *cli.Context) error {
-		if len(c.Args()) < 1 {
-			return errors.New("Usage: booster dir")
-		}
-		return nil
-	}
 	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port",
 			Usage: "TCP port for the API (default 5000)",
 			Value: 5000,
+		},
+		cli.StringFlag{
+			Name:  "path",
+			Usage: "path of the base registry directory (default /var/lib/registry)",
+			Value: "/var/lib/registry",
 		},
 		cli.StringFlag{
 			Name:  "primary",
@@ -53,7 +51,7 @@ func main() {
 }
 
 func serve(ctx *cli.Context) error {
-	path := ctx.Args().First()
+	path := ctx.String("path")
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
