@@ -126,13 +126,19 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	}
 	h := response["hash"]
 
-	err = wharf.Apply(primary+"/diff?hash="+h, path)
+	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
 		return bark(err, "Sync: error while applying patch", w)}
 
 	err = gzip.RecompressAllIn(path)
 	if err != nil {
 		return bark(err, "Sync: error while recompressing files", w)
+	}
+
+	json, _ := json.MarshalIndent(map[string]int64{"transferred_mb" : size/1024/1024}, "", "  ")
+	_, err = w.Write(json)
+	if err != nil {
+		return bark(err,"Sync: error while writing response", w)
 	}
 
 	return nil

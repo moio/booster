@@ -62,39 +62,40 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, newFi
 	return nil
 }
 
-func Apply(patch string, old string) error {
-	patchSource, err := filesource.Open(patch)
+// Apply applies a patch to a directory. Returns patch size or error
+func Apply(patchPath string, directory string) (int64, error) {
+	patchSource, err := filesource.Open(patchPath)
 	if err != nil {
-		return errors.WithMessage(err, "opening patch")
+		return 0, errors.WithMessage(err, "opening patchPath")
 	}
 
 	p, err := patcher.New(patchSource, &state.Consumer{})
 	if err != nil {
-		return errors.WithMessage(err, "creating patcher")
+		return 0, errors.WithMessage(err, "creating patcher")
 	}
 
-	targetPool := fspool.New(p.GetTargetContainer(), old)
+	targetPool := fspool.New(p.GetTargetContainer(), directory)
 
 	var bwl bowl.Bowl
 	bwl, err = bowl.NewOverlayBowl(bowl.OverlayBowlParams{
 		SourceContainer: p.GetSourceContainer(),
 		TargetContainer: p.GetTargetContainer(),
-		OutputFolder:    old,
+		OutputFolder:    directory,
 		StageFolder:     filepath.Join(os.TempDir(), "booster", "staging"),
 	})
 	if err != nil {
-		return errors.WithMessage(err, "creating overlay bowl")
+		return 0, errors.WithMessage(err, "creating overlay bowl")
 	}
 
 	err = p.Resume(nil, targetPool, bwl)
 	if err != nil {
-		return errors.WithMessage(err, "patching")
+		return 0, errors.WithMessage(err, "patching")
 	}
 
 	err = bwl.Commit()
 	if err != nil {
-		return errors.WithMessage(err, "committing bowl")
+		return 0, errors.WithMessage(err, "committing bowl")
 	}
 
-	return nil
+	return patchSource.Size(), nil
 }
