@@ -48,7 +48,7 @@ func CreatePatch(oldPath string, oldFilter tlc.FilterFunc, newPath string, targe
 		Consumer: &state.Consumer{},
 		Compression: &pwr.CompressionSettings{
 			Algorithm: pwr.CompressionAlgorithm_BROTLI,
-			Quality:   3, // standard for brotli
+			Quality:   7, // "plateau" for brotli, see https://blogs.akamai.com/2016/02/understanding-brotlis-potential.html
 		},
 	}
 
