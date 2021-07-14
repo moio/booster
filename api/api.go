@@ -18,6 +18,23 @@ import (
 	"strings"
 )
 
+// Serve serves the HTTP API
+func Serve(basedir string, port int, primary string) error {
+	http.HandleFunc("/prepare_diff", func(writer http.ResponseWriter, request *http.Request) {
+		PrepareDiff(basedir, writer, request)
+	})
+
+	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
+		Diff(basedir, writer, request)
+	})
+
+	http.HandleFunc("/sync", func(writer http.ResponseWriter, request *http.Request) {
+		Sync(basedir, primary, writer, request)
+	})
+
+	return http.ListenAndServe(fmt.Sprintf(":%v", port), nil)
+}
+
 // PrepareDiff computes the patch between (decompressed) files in basedir and files passed in
 // the request body.
 // The result is cached in a temporary directory by hash, returned in the response body
