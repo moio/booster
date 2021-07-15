@@ -85,6 +85,9 @@ func decompress(sourcePath string, destinationPath string) error {
 // RecompressAllIn recompresses any gzip files decompressed by DecompressAllIn
 func RecompressAllIn(basePath string) error {
 	return filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		// skip any file other than those created by DecompressAllIn
 		if !strings.HasSuffix(p, Suffix) {
 			return nil
@@ -95,8 +98,7 @@ func RecompressAllIn(basePath string) error {
 			return nil
 		}
 
-		err = compress(p, compressedPath)
-		if err != nil {
+		if err := compress(p, compressedPath); err != nil {
 			return errors.Wrapf(err, "decompression attempt failed: %v", compressedPath)
 		}
 
@@ -140,11 +142,18 @@ func compress(sourcePath string, destinationPath string) error {
 }
 
 // ListDecompressedOnly returns a set of all files in a directory
-func ListDecompressedOnly(path string) map[string]bool {
+func ListDecompressedOnly(path string) (map[string]bool, error) {
 	current := map[string]bool{}
-	toRemove := make([]string, 0)
-	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
-		relative, _ := filepath.Rel(path, p)
+	toRemove := []string{}
+	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relative, err := filepath.Rel(path, p)
+		if err != nil {
+			return errors.Wrapf(err, "Cannot compute relative path of %s", filepath.Join(path, p))
+		}
 		current[relative] = true
 
 		if strings.HasSuffix(relative, Suffix) {
@@ -152,11 +161,14 @@ func ListDecompressedOnly(path string) map[string]bool {
 		}
 		return nil
 	})
+	if err != nil {
+		return make(map[string]bool), err
+	}
 
 	// remove files for which we have an uncompressed copy
 	for _, k := range toRemove {
 		delete(current, k)
 	}
 
-	return current
+	return current, nil
 }
