@@ -4,9 +4,6 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
-	"github.com/moio/booster/gzip"
-	"github.com/moio/booster/wharf"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -14,23 +11,28 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/moio/booster/gzip"
+	"github.com/moio/booster/wharf"
+	"github.com/pkg/errors"
 )
 
 // Serve serves the HTTP API
 func Serve(basedir string, port int, primary string) error {
 	http.HandleFunc("/prepare_diff", func(writer http.ResponseWriter, request *http.Request) {
-		PrepareDiff(basedir, writer, request)
+		_ = PrepareDiff(basedir, writer, request)
 	})
 
 	http.HandleFunc("/diff", func(writer http.ResponseWriter, request *http.Request) {
-		Diff(basedir, writer, request)
+		_ = Diff(basedir, writer, request)
 	})
 
 	http.HandleFunc("/sync", func(writer http.ResponseWriter, request *http.Request) {
-		Sync(basedir, primary, writer, request)
+		_ = Sync(basedir, primary, writer, request)
 	})
 
 	return http.ListenAndServe(fmt.Sprintf(":%v", port), nil)
@@ -48,17 +50,24 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// determine new files, which is all files we have in decompressed form only
-	err := gzip.DecompressAllIn(basedir)
-	if err != nil {
+	if err := gzip.DecompressAllIn(basedir); err != nil {
 		return bark(err, "PrepareDiff: error while decompressing files", w)
 	}
-	newFiles := gzip.ListDecompressedOnly(basedir)
+	newFiles, err := gzip.ListDecompressedOnly(basedir)
+	if err != nil {
+		return bark(err, "PrepareDiff: error while listing decompressed files", w)
+	}
 
 	// compute a unique hash for this diff
-	h := hash(oldFiles, newFiles)
+	h, err := hash(oldFiles, newFiles)
+	if err != nil {
+		return bark(err, "PrepareDiff: error while computing hash", w)
+	}
 
 	// actually compute the diff, if new
-	os.MkdirAll(path.Join(os.TempDir(), "booster"), 0700)
+	if err := os.MkdirAll(path.Join(os.TempDir(), "booster"), 0700); err != nil {
+		return bark(err, "PrepareDiff: error while creating 'booster' temporary directory", w)
+	}
 	patchPath := path.Join(os.TempDir(), "booster", h)
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
 		f, err := os.Create(patchPath)
@@ -71,20 +80,22 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return bark(err, "PrepareDiff: error while creating patch", w)
 		}
-		err = f.Close()
-		if err != nil {
+		if err := f.Close(); err != nil {
 			return bark(err, "PrepareDiff: error while closing patch file", w)
 		}
 	}
 
 	// return the unique hash in the response
-	response, _ := json.Marshal(map[string]string{"hash": h})
-	_, err = w.Write(response)
+	response, err := json.Marshal(map[string]string{"hash": h})
 	if err != nil {
+		return bark(err, "PrepareDiff: error while marshalling response", w)
+	}
+
+	if _, err := w.Write(response); err != nil {
 		return bark(err, "PrepareDiff: error while writing response", w)
 	}
 
-	return err
+	return nil
 }
 
 // Diff serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
@@ -92,8 +103,7 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	h := r.FormValue("hash")
 
 	// sanitize input
-	_, err := regexp.MatchString("[0-9a-f]", h)
-	if err != nil {
+	if _, err := regexp.MatchString("[0-9a-f]", h); err != nil {
 		return bark(errors.Errorf("invalid hash %v", h), "Diff: hash validation error", w)
 	}
 
@@ -101,17 +111,22 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// Sync requests the patch from the sert of files in path to the set of files on the primary
+// Sync requests the patch from the set of files in path to the set of files on the primary
 // and applies it locally
 func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) error {
 	// determine new files, which is all files we have in decompressed form only
-	err := gzip.DecompressAllIn(path)
-	if err != nil {
+	if err := gzip.DecompressAllIn(path); err != nil {
 		return bark(err, "Sync: error while decompressing files", w)
 	}
-	old := sorted(gzip.ListDecompressedOnly(path))
+	decompressed, err := gzip.ListDecompressedOnly(path)
+	if err != nil {
+		return bark(err, "Sync: error while listing decompressed files", w)
+	}
+	old := sorted(decompressed)
 
-	resp, err := http.PostForm(primary+"/prepare_diff", url.Values{"old": {strings.Join(old, "\n")}})
+	resp, err := http.PostForm(
+		filepath.Join(primary, "prepare_diff"),
+		url.Values{"old": {strings.Join(old, "\n")}})
 	if err != nil {
 		return bark(err, "Sync: error requesting diff preparation to primary", w)
 	}
@@ -120,8 +135,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 		return bark(err, "Sync: error getting diff preparation hash to primary", w)
 	}
 	var response map[string]string
-	err = json.Unmarshal(bodyBytes, &response)
-	if err != nil {
+	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return bark(err, "Sync: error unmarshaling hash from primary", w)
 	}
 	h := response["hash"]
@@ -131,14 +145,16 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 		return bark(err, "Sync: error while applying patch", w)
 	}
 
-	err = gzip.RecompressAllIn(path)
-	if err != nil {
+	if err := gzip.RecompressAllIn(path); err != nil {
 		return bark(err, "Sync: error while recompressing files", w)
 	}
 
-	json, _ := json.MarshalIndent(map[string]int64{"transferred_mb": size / 1024 / 1024}, "", "  ")
-	_, err = w.Write(json)
+	json, err := json.MarshalIndent(map[string]int64{"transferred_mb": size / 1024 / 1024}, "", "  ")
 	if err != nil {
+		return bark(err, "Sync: error marshalling response", w)
+	}
+
+	if _, err := w.Write(json); err != nil {
 		return bark(err, "Sync: error while writing response", w)
 	}
 
@@ -147,8 +163,8 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 
 // sorted turns a path set into a path list
 func sorted(pathSet map[string]bool) []string {
-	result := make([]string, 0)
-	for k, _ := range pathSet {
+	result := []string{}
+	for k := range pathSet {
 		result = append(result, k)
 	}
 	sort.Strings(result)
@@ -157,16 +173,22 @@ func sorted(pathSet map[string]bool) []string {
 }
 
 // hash computes a hash from sets of paths
-func hash(oldMap map[string]bool, newMap map[string]bool) string {
+func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 	h := sha512.New()
 	for _, f := range sorted(oldMap) {
-		io.WriteString(h, f)
+		if _, err := io.WriteString(h, f); err != nil {
+			return "", err
+		}
 	}
-	io.WriteString(h, "//////")
+	if _, err := io.WriteString(h, "//////"); err != nil {
+		return "", err
+	}
 	for _, f := range sorted(newMap) {
-		io.WriteString(h, f)
+		if _, err := io.WriteString(h, f); err != nil {
+			return "", err
+		}
 	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
 // bark writes an error (500) response
