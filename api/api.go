@@ -42,6 +42,12 @@ func Serve(basedir string, port int, primary string) error {
 		}
 	})
 
+	http.HandleFunc("/cleanup", func(writer http.ResponseWriter, request *http.Request) {
+		if err := Cleanup(basedir, writer, request); err != nil {
+			abort(err, writer)
+		}
+	})
+
 	return http.ListenAndServe(fmt.Sprintf(":%v", port), nil)
 }
 
@@ -77,10 +83,10 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// actually compute the diff, if new
-	if err := os.MkdirAll(path.Join(os.TempDir(), "booster"), 0700); err != nil {
+	if err := os.MkdirAll(path.Join("basedir", "booster"), 0700); err != nil {
 		return errors.Wrap(err, "PrepareDiff: error while creating 'booster' temporary directory")
 	}
-	patchPath := path.Join(os.TempDir(), "booster", h)
+	patchPath := path.Join("basedir", "booster", h)
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
 		f, err := os.Create(patchPath)
 		if err != nil {
@@ -151,12 +157,12 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return errors.Wrap(err, "Sync: error getting diff preparation hash to primary")
 	}
-	var response PrepareDiffResp
-	if err := json.Unmarshal(bodyBytes, &response); err != nil {
+	var prepareResp PrepareDiffResp
+	if err := json.Unmarshal(bodyBytes, &prepareResp); err != nil {
 		return errors.Wrap(err, "Sync: error unmarshaling hash from primary")
 	}
 
-	size, err := wharf.Apply(primary+"/diff?hash="+response.Hash, path)
+	size, err := wharf.Apply(primary+"/diff?hash="+prepareResp.Hash, path)
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while applying patch")
 	}
@@ -165,16 +171,24 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 		return errors.Wrap(err, "Sync: error while recompressing files")
 	}
 
-	json, err := json.MarshalIndent(SyncResp{TransferredMB: size / 1024 / 1024}, "", "  ")
+	syncResp, err := json.MarshalIndent(SyncResp{TransferredMB: size / 1024 / 1024}, "", "  ")
 	if err != nil {
-		return errors.Wrap(err, "Sync: error marshalling response")
+		return errors.Wrap(err, "Sync: error marshalling prepareResp")
 	}
 
-	if _, err := w.Write(json); err != nil {
-		return errors.Wrap(err, "Sync: error while writing response")
+	if _, err := w.Write(syncResp); err != nil {
+		return errors.Wrap(err, "Sync: error while writing prepareResp")
 	}
 
 	return nil
+}
+
+// Cleanup removes any booster-specific file
+func Cleanup(basedir string, writer http.ResponseWriter, request *http.Request) error {
+	if err := os.RemoveAll(path.Join(basedir, "booster")); err != nil {
+		return err
+	}
+	return gzip.Clean(basedir)
 }
 
 // sorted turns a path set into a path list

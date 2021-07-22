@@ -65,6 +65,11 @@ docker image push localhost:5001/ubuntu:xenial-20210611
 curl http://localhost:5004/sync
 ```
 
+To clean up temporary files:
+```shell
+curl http://localhost:5002/clean
+curl http://localhost:5004/clean
+```
 
 ## Hacking
 

@@ -172,3 +172,30 @@ func ListDecompressedOnly(path string) (map[string]bool, error) {
 
 	return current, nil
 }
+
+// Clean deletes decompressed files
+func Clean(path string) error {
+	var toRemove []string
+	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if strings.HasSuffix(p, Suffix) {
+			toRemove = append(toRemove, p)
+		}
+		return nil
+	})
+	if err != nil {
+		return errors.Wrap(err, "error while walking files to clean")
+	}
+
+	// remove files for which we have an uncompressed copy
+	for _, k := range toRemove {
+		if err := os.Remove(k); err != nil {
+			return errors.Wrapf(err, "error while deleting file %s", k)
+		}
+	}
+
+	return nil
+}
