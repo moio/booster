@@ -158,7 +158,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	log.Info().Str("primary", primary).Msg("Asking primary to prepare patch")
 
 	resp, err := http.PostForm(
-		filepath.Join(primary, "prepare_diff"),
+		primary + "/prepare_diff",
 		url.Values{"old": {strings.Join(old, "\n")}})
 	if err != nil {
 		return errors.Wrap(err, "Sync: error requesting diff preparation to primary")
