@@ -3,6 +3,7 @@ package gzip
 import (
 	"compress/gzip"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"io"
 	"io/fs"
 	"os"
@@ -49,6 +50,8 @@ func decompress(sourcePath string, destinationPath string) error {
 	if err != nil {
 		return errors.Wrapf(err, "error while initing decompression: %v", sourcePath)
 	}
+
+	log.Debug().Str("path", sourcePath).Msg("Decompressing")
 
 	destination, err := os.Create(destinationPath)
 	if err != nil {
@@ -108,6 +111,8 @@ func RecompressAllIn(basePath string) error {
 
 // compress gzip-compresses a file
 func compress(sourcePath string, destinationPath string) error {
+	log.Debug().Str("path", destinationPath).Msg("Compressing")
+
 	source, err := os.Open(sourcePath)
 	if err != nil {
 		return errors.Wrapf(err, "could not open to compress: %v", sourcePath)
@@ -175,6 +180,7 @@ func ListDecompressedOnly(path string) (map[string]bool, error) {
 
 // Clean deletes decompressed files
 func Clean(path string) error {
+	log.Info().Str("path", path).Msg("Cleaning")
 	var toRemove []string
 	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

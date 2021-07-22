@@ -48,6 +48,8 @@ func Serve(basedir string, port int, primary string) error {
 		}
 	})
 
+	log.Info().Msg("API started")
+
 	return http.ListenAndServe(fmt.Sprintf(":%v", port), nil)
 }
 
@@ -87,6 +89,8 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "PrepareDiff: error while creating 'booster' temporary directory")
 	}
 	patchPath := path.Join("basedir", "booster", h)
+
+	log.Info().Str("hash", h[:10]).Msg("Creating patch for content hash...")
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
 		f, err := os.Create(patchPath)
 		if err != nil {
@@ -102,6 +106,8 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 			return errors.Wrap(err, "PrepareDiff: error while closing patch file")
 		}
 	}
+
+	log.Info().Str("hash", h[:10]).Msg("Patch created")
 
 	// return the unique hash in the response
 	response, err := json.Marshal(PrepareDiffResp{Hash: h})
@@ -119,6 +125,8 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 // Diff serves a patch previously computed via PrepareDiff. It expects a hash value as parameter
 func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	h := r.FormValue("hash")
+
+	log.Info().Str("hash", h[:10]).Msg("Serving patch")
 
 	// sanitize input
 	if _, err := regexp.MatchString("[0-9a-f]", h); err != nil {
@@ -147,6 +155,8 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	}
 	old := sorted(decompressed)
 
+	log.Info().Str("primary", primary).Msg("Asking primary to prepare patch")
+
 	resp, err := http.PostForm(
 		filepath.Join(primary, "prepare_diff"),
 		url.Values{"old": {strings.Join(old, "\n")}})
@@ -162,10 +172,15 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 		return errors.Wrap(err, "Sync: error unmarshaling hash from primary")
 	}
 
-	size, err := wharf.Apply(primary+"/diff?hash="+prepareResp.Hash, path)
+	h := prepareResp.Hash
+	log.Info().Str("hash", h[:10]).Msg("Patch is ready. Applying")
+
+	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while applying patch")
 	}
+
+	log.Info().Str("hash", h[:10]).Msg("Patch applied. Recompressing")
 
 	if err := gzip.RecompressAllIn(path); err != nil {
 		return errors.Wrap(err, "Sync: error while recompressing files")
@@ -179,6 +194,8 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if _, err := w.Write(syncResp); err != nil {
 		return errors.Wrap(err, "Sync: error while writing prepareResp")
 	}
+
+	log.Info().Msg("Sync done")
 
 	return nil
 }
@@ -225,7 +242,7 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 
 // abort writes an error (500) response
 func abort(err error, w http.ResponseWriter) {
-	log.Error().Err(err)
+	log.Error().Err(err).Stack()
 	w.WriteHeader(500)
 	_, err = fmt.Fprintf(w, "Unexpected error: %v\n", err)
 	if err != nil {
