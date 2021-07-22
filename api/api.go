@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -85,12 +84,13 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// actually compute the diff, if new
-	if err := os.MkdirAll(path.Join("basedir", "booster"), 0700); err != nil {
+	if err := os.MkdirAll(path.Join(basedir, "booster"), 0700); err != nil {
 		return errors.Wrap(err, "PrepareDiff: error while creating 'booster' temporary directory")
 	}
-	patchPath := path.Join("basedir", "booster", h)
 
 	log.Info().Str("hash", h[:10]).Msg("Creating patch for content hash...")
+
+	patchPath := path.Join(basedir, "booster", h)
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
 		f, err := os.Create(patchPath)
 		if err != nil {
@@ -133,7 +133,7 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(errors.Errorf("invalid hash %v", h), "Diff: hash validation error")
 	}
 
-	http.ServeFile(w, r, path.Join(os.TempDir(), "booster", h))
+	http.ServeFile(w, r, path.Join(basedir, "booster", h))
 	return nil
 }
 

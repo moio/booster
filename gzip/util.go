@@ -159,8 +159,13 @@ func ListDecompressedOnly(path string) (map[string]bool, error) {
 		if err != nil {
 			return errors.Wrapf(err, "Cannot compute relative path of %s", filepath.Join(path, p))
 		}
-		current[relative] = true
 
+		// skip the booster-specific dir altogether
+		if strings.Split(relative, string(os.PathSeparator))[0] == "booster" {
+			return nil
+		}
+
+		current[relative] = true
 		if strings.HasSuffix(relative, Suffix) {
 			toRemove = append(toRemove, strings.TrimSuffix(relative, Suffix))
 		}
