@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+
 // Serve serves the HTTP API
 func Serve(basedir string, port int, primary string) error {
 	http.HandleFunc("/prepare_diff", func(writer http.ResponseWriter, request *http.Request) {
@@ -36,6 +37,11 @@ func Serve(basedir string, port int, primary string) error {
 	})
 
 	return http.ListenAndServe(fmt.Sprintf(":%v", port), nil)
+}
+
+// PrepareDiffResp represents the json response of PrepareDiff
+type PrepareDiffResp struct {
+	Hash string
 }
 
 // PrepareDiff computes the patch between (decompressed) files in basedir and files passed in
@@ -86,7 +92,7 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// return the unique hash in the response
-	response, err := json.Marshal(map[string]string{"hash": h})
+	response, err := json.Marshal(PrepareDiffResp{Hash: h})
 	if err != nil {
 		return bark(err, "PrepareDiff: error while marshalling response", w)
 	}
@@ -109,6 +115,11 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 
 	http.ServeFile(w, r, path.Join(os.TempDir(), "booster", h))
 	return nil
+}
+
+// SyncResp represents the json response of Sync
+type SyncResp struct {
+	TransferredMB int64
 }
 
 // Sync requests the patch from the set of files in path to the set of files on the primary
@@ -134,13 +145,12 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return bark(err, "Sync: error getting diff preparation hash to primary", w)
 	}
-	var response map[string]string
+	var response PrepareDiffResp
 	if err := json.Unmarshal(bodyBytes, &response); err != nil {
 		return bark(err, "Sync: error unmarshaling hash from primary", w)
 	}
-	h := response["hash"]
 
-	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
+	size, err := wharf.Apply(primary+"/diff?hash="+response.Hash, path)
 	if err != nil {
 		return bark(err, "Sync: error while applying patch", w)
 	}
@@ -149,7 +159,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 		return bark(err, "Sync: error while recompressing files", w)
 	}
 
-	json, err := json.MarshalIndent(map[string]int64{"transferred_mb": size / 1024 / 1024}, "", "  ")
+	json, err := json.MarshalIndent(SyncResp{TransferredMB: size / 1024 / 1024}, "", "  ")
 	if err != nil {
 		return bark(err, "Sync: error marshalling response", w)
 	}
