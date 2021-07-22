@@ -221,9 +221,14 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+
+
 // abort writes an error (500) response
 func abort(err error, w http.ResponseWriter) {
-	w.WriteHeader(500)
-	fmt.Fprintf(w, "Unexpected error: %v\n", err)
 	log.Error().Err(err)
+	w.WriteHeader(500)
+	_, err = fmt.Fprintf(w, "Unexpected error: %v\n", err)
+	if err != nil {
+		log.Error().Err(err).Msg("additional error while writing the response")
+	}
 }
