@@ -4,9 +4,9 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -211,5 +211,5 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 func abort(err error, w http.ResponseWriter) {
 	w.WriteHeader(500)
 	fmt.Fprintf(w, "Unexpected error: %v\n", err)
-	log.Print(err)
+	log.Error().Err(err)
 }

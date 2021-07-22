@@ -2,6 +2,11 @@ package wharf
 
 import (
 	"context"
+	"io"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
 	"github.com/itchio/headway/state"
 	"github.com/itchio/lake/pools/fspool"
 	"github.com/itchio/lake/tlc"
@@ -12,10 +17,6 @@ import (
 	"github.com/itchio/wharf/pwr/bowl"
 	"github.com/itchio/wharf/pwr/patcher"
 	"github.com/pkg/errors"
-	"io"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 // CreatePatch writes a patch from files in oldPath filtered via oldFilter to files in newPath filtered via newFilter

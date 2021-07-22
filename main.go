@@ -1,11 +1,13 @@
 package main
 
 import (
-	"fmt"
-	"github.com/moio/booster/api"
 	"os"
 
+	"github.com/moio/booster/api"
+
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli"
 )
 
@@ -15,6 +17,11 @@ import (
 var version string
 
 func main() {
+	// init logging
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
+	// init command line handler
 	app := cli.NewApp()
 	app.Name = "booster"
 	app.Usage = "Synchronizes container image registries efficiently"
@@ -45,8 +52,8 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Printf("%v\n", err)
-		os.Exit(1)
+		log.Fatal().
+			Err(err)
 	}
 }
 

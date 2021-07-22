@@ -1,10 +1,11 @@
 package wharf
 
 import (
-	"github.com/itchio/lake/tlc"
+	"io"
 	"path/filepath"
+
+	"github.com/itchio/lake/tlc"
 )
-import "io"
 
 // AcceptListFilter only keeps files from an accept list
 type AcceptListFilter struct {
