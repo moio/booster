@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-
 // Serve serves the HTTP API
 func Serve(basedir string, port int, primary string) error {
 	http.HandleFunc("/prepare_diff", func(writer http.ResponseWriter, request *http.Request) {
@@ -158,7 +157,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	log.Info().Str("primary", primary).Msg("Asking primary to prepare patch")
 
 	resp, err := http.PostForm(
-		primary + "/prepare_diff",
+		primary+"/prepare_diff",
 		url.Values{"old": {strings.Join(old, "\n")}})
 	if err != nil {
 		return errors.Wrap(err, "Sync: error requesting diff preparation to primary")
@@ -237,8 +236,6 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
-
-
 
 // abort writes an error (500) response
 func abort(err error, w http.ResponseWriter) {
