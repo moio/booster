@@ -2,7 +2,8 @@
 
 Makes synchronization of container images between registries faster.
 
-![build status](https://github.com/moio/booster/actions/workflows/checks.yml/badge.svg)
+[![golangci-lint](https://github.com/moio/booster/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/moio/booster/actions/workflows/golangci-lint.yml)
+
 
 ## Requirements
 
