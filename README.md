@@ -47,9 +47,9 @@ docker run -d \
 
 Load up the primary Registry with an image:
 ```shell
-docker pull ubuntu:xenial-20210429
-docker image tag ubuntu:xenial-20210429 localhost:5001/ubuntu:xenial-20210429
-docker image push localhost:5001/ubuntu:xenial-20210429
+docker pull ubuntu:bionic-20210615.1
+docker image tag ubuntu:bionic-20210615.1 localhost:5001/ubuntu:bionic-20210615.1
+docker image push localhost:5001/ubuntu:bionic-20210615.1
 ```
 
 Synchronize the replica to the primary's contents via:
@@ -59,18 +59,20 @@ curl http://localhost:5004/sync
 
 Then push another image and synchronize again:
 ```shell
-docker pull ubuntu:xenial-20210611
-docker image tag ubuntu:xenial-20210611 localhost:5001/ubuntu:xenial-20210611
-docker image push localhost:5001/ubuntu:xenial-20210611
+docker pull ubuntu:bionic-20210702
+docker image tag ubuntu:bionic-20210702 localhost:5001/ubuntu:bionic-20210702
+docker image push localhost:5001/ubuntu:bionic-20210702
 
 curl http://localhost:5004/sync
 ```
 
 To clean up temporary files:
 ```shell
-curl http://localhost:5002/clean
-curl http://localhost:5004/clean
+curl http://localhost:5002/cleanup
+curl http://localhost:5004/cleanup
 ```
+
+Scripts to set up and tear down a demo with two replicas are available in the `scripts` directory.
 
 ## Hacking
 
