@@ -16,6 +16,7 @@ const Suffix = "_UNGZIPPED_BY_BOOSTER"
 
 // DecompressAllIn uncompresses "recompressible" gzip files found in basePath and subdirectories
 func DecompressAllIn(basePath string) error {
+	log.Debug().Msg("Decompressing layer files...")
 	return filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
 		// skip irregular files
 		if !d.Type().IsRegular() {
@@ -51,8 +52,6 @@ func decompress(sourcePath string, destinationPath string) error {
 		return errors.Wrapf(err, "error while initing decompression: %v", sourcePath)
 	}
 
-	log.Debug().Str("path", sourcePath).Msg("Decompressing")
-
 	destination, err := os.Create(destinationPath)
 	if err != nil {
 		return errors.Wrapf(err, "could not create temporary file to attempt decompression: %v", destinationPath)
@@ -87,6 +86,7 @@ func decompress(sourcePath string, destinationPath string) error {
 
 // RecompressAllIn recompresses any gzip files decompressed by DecompressAllIn
 func RecompressAllIn(basePath string) error {
+	log.Debug().Msg("Recompressing layer files...")
 	return filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -111,8 +111,6 @@ func RecompressAllIn(basePath string) error {
 
 // compress gzip-compresses a file
 func compress(sourcePath string, destinationPath string) error {
-	log.Debug().Str("path", destinationPath).Msg("Compressing")
-
 	source, err := os.Open(sourcePath)
 	if err != nil {
 		return errors.Wrapf(err, "could not open to compress: %v", sourcePath)

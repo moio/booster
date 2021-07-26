@@ -87,7 +87,7 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "PrepareDiff: error while creating 'booster' temporary directory")
 	}
 
-	log.Info().Str("hash", h[:10]).Msg("Creating patch for content hash...")
+	log.Info().Str("hash", h[:10]).Msg("Creating patch...")
 
 	patchPath := path.Join(basedir, "booster", h)
 	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
@@ -105,8 +105,6 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 			return errors.Wrap(err, "PrepareDiff: error while closing patch file")
 		}
 	}
-
-	log.Info().Str("hash", h[:10]).Msg("Patch created")
 
 	// return the unique hash in the response
 	response, err := json.Marshal(PrepareDiffResp{Hash: h})
@@ -136,11 +134,6 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// SyncResp represents the json response of Sync
-type SyncResp struct {
-	TransferredMB int64
-}
-
 // Sync requests the patch from the set of files in path to the set of files on the primary
 // and applies it locally
 func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) error {
@@ -154,7 +147,7 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	}
 	old := sorted(decompressed)
 
-	log.Info().Str("primary", primary).Msg("Asking primary to prepare patch")
+	log.Info().Str("primary", primary).Msg("Requesting to prepare patch...")
 
 	resp, err := http.PostForm(
 		primary+"/prepare_diff",
@@ -172,29 +165,18 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	}
 
 	h := prepareResp.Hash
-	log.Info().Str("hash", h[:10]).Msg("Patch is ready. Applying")
+	log.Info().Str("hash", h[:10]).Msg("Downloading and applying patch...")
 
 	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while applying patch")
 	}
 
-	log.Info().Str("hash", h[:10]).Msg("Patch applied. Recompressing")
-
 	if err := gzip.RecompressAllIn(path); err != nil {
 		return errors.Wrap(err, "Sync: error while recompressing files")
 	}
 
-	syncResp, err := json.MarshalIndent(SyncResp{TransferredMB: size / 1024 / 1024}, "", "  ")
-	if err != nil {
-		return errors.Wrap(err, "Sync: error marshalling prepareResp")
-	}
-
-	if _, err := w.Write(syncResp); err != nil {
-		return errors.Wrap(err, "Sync: error while writing prepareResp")
-	}
-
-	log.Info().Msg("Sync done")
+	log.Info().Int64("transferred_MiB", size/1024/1024).Msg("Sync done")
 
 	return nil
 }
