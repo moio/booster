@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // set by goreleaser via -ldflags at build time
@@ -31,23 +31,28 @@ func main() {
 		app.Version = "snapshot"
 	}
 	app.EnableBashCompletion = true
-	app.Action = serve
-
-	app.Flags = []cli.Flag{
-		cli.IntFlag{
-			Name:  "port",
-			Usage: "TCP port for the API (default 5000)",
-			Value: 5000,
-		},
-		cli.StringFlag{
-			Name:  "path",
-			Usage: "path of the base registry directory (default /var/lib/registry)",
-			Value: "/var/lib/registry",
-		},
-		cli.StringFlag{
-			Name:  "primary",
-			Usage: "http address of the primary, if any",
-			Value: "",
+	app.Commands = []*cli.Command{
+		{
+			Name:      "serve",
+			Usage:     "serves the booster HTTP API",
+			Action:    serve,
+			Flags: []cli.Flag{
+				&cli.IntFlag{
+					Name:  "port",
+					Usage: "TCP port for the API (default 5000)",
+					Value: 5000,
+				},
+				&cli.StringFlag{
+					Name:  "path",
+					Usage: "path of the base registry directory (default /var/lib/registry)",
+					Value: "/var/lib/registry",
+				},
+				&cli.StringFlag{
+					Name:  "primary",
+					Usage: "http address of the primary, if any",
+					Value: "",
+				},
+			},
 		},
 	}
 

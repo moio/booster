@@ -10,7 +10,7 @@ require (
 	github.com/itchio/wharf v0.0.0-20200618133039-e0beba741312
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.23.0
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli/v2 v2.3.0
 )
 
 replace github.com/itchio/lake => github.com/moio/lake v0.0.0-20210618151745-df1660885716

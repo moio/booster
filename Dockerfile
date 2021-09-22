@@ -5,4 +5,4 @@ EXPOSE 5000/tcp
 
 VOLUME ["/var/lib/registry"]
 
-ENTRYPOINT ["/booster"]
+ENTRYPOINT ["/booster", "serve"]
