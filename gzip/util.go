@@ -4,10 +4,12 @@ import (
 	"compress/gzip"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"github.com/alitto/pond"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -17,7 +19,8 @@ const Suffix = "_UNGZIPPED_BY_BOOSTER"
 // DecompressAllIn uncompresses "recompressible" gzip files found in basePath and subdirectories
 func DecompressAllIn(basePath string) error {
 	log.Debug().Msg("Decompressing layer files...")
-	return filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
+	pool := pond.New(runtime.NumCPU(), 1000)
+	err := filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
 		// skip irregular files
 		if !d.Type().IsRegular() {
 			return nil
@@ -32,8 +35,22 @@ func DecompressAllIn(basePath string) error {
 			return nil
 		}
 
-		return decompress(p, uncompressedPath)
+		pool.Submit(func() {
+			if err := decompress(p, uncompressedPath); err != nil {
+				log.Error().Err(err)
+			}
+		})
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	pool.StopAndWait()
+	if pool.FailedTasks() != 0 {
+		return errors.Errorf("Error while decompressing files in %v", basePath)
+	}
+	return nil
 }
 
 // decompress decompresses a gzip file, if recompressible, into destinationPath
@@ -87,7 +104,8 @@ func decompress(sourcePath string, destinationPath string) error {
 // RecompressAllIn recompresses any gzip files decompressed by DecompressAllIn
 func RecompressAllIn(basePath string) error {
 	log.Debug().Msg("Recompressing layer files...")
-	return filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
+	pool := pond.New(runtime.NumCPU(), 1000)
+	err := filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -101,12 +119,22 @@ func RecompressAllIn(basePath string) error {
 			return nil
 		}
 
-		if err := compress(p, compressedPath); err != nil {
-			return errors.Wrapf(err, "decompression attempt failed: %v", compressedPath)
-		}
-
+		pool.Submit(func() {
+			if err := compress(p, compressedPath); err != nil {
+				log.Error().Err(err)
+			}
+		})
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	pool.StopAndWait()
+	if pool.FailedTasks() != 0 {
+		return errors.Errorf("Error while decompressing files in %v", basePath)
+	}
+	return nil
 }
 
 // compress gzip-compresses a file
