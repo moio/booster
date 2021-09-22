@@ -3,6 +3,7 @@ module github.com/moio/booster
 go 1.16
 
 require (
+	github.com/alitto/pond v1.5.1
 	github.com/itchio/headway v0.0.0-20200301160421-e15721f23905
 	github.com/itchio/lake v0.0.0-20200305150023-cc4284ec2b2a
 	github.com/itchio/savior v0.0.0-20200303195615-7cac7998294c
