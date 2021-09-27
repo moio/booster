@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"github.com/itchio/httpkit/eos"
 	"github.com/rs/zerolog/log"
 	"io"
 	"io/ioutil"
@@ -87,21 +88,48 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "PrepareDiff: error while creating 'booster' temporary directory")
 	}
 
-	log.Info().Str("hash", h[:10]).Msg("Creating patch...")
+	oldFilter := wharf.NewAcceptListFilter(basedir, oldFiles)
+	newFilter := wharf.NewAcceptListFilter(basedir, newFiles)
 
-	patchPath := path.Join(basedir, "booster", h)
-	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
-		f, err := os.Create(patchPath)
+	unoptimizedPatchPath := path.Join(basedir, "booster", h + "_tmp")
+	if _, err := os.Stat(unoptimizedPatchPath); os.IsNotExist(err) {
+		log.Info().Str("hash", h[:10]).Msg("Creating patch...")
+
+		f, err := os.Create(unoptimizedPatchPath)
 		if err != nil {
 			return errors.Wrap(err, "PrepareDiff: error while opening patch file")
 		}
-		oldFilter := wharf.NewAcceptListFilter(basedir, oldFiles)
-		newFilter := wharf.NewAcceptListFilter(basedir, newFiles)
 		err = wharf.CreatePatch(basedir, oldFilter.Filter, basedir, newFilter.Filter, wharf.PreventClosing(f))
 		if err != nil {
 			return errors.Wrap(err, "PrepareDiff: error while creating patch")
 		}
 		if err := f.Close(); err != nil {
+			return errors.Wrap(err, "PrepareDiff: error while closing patch file")
+		}
+	}
+
+	patchPath := path.Join(basedir, "booster", h)
+	if _, err := os.Stat(patchPath); os.IsNotExist(err) {
+		log.Info().Str("hash", h[:10]).Msg("Optimizing patch...")
+
+		reader, err := eos.Open(unoptimizedPatchPath)
+		if err != nil {
+			return errors.Wrap(err, "PrepareDiff: error while reading patch file")
+		}
+
+		f, err := os.Create(patchPath)
+		if err != nil {
+			return errors.Wrap(err, "PrepareDiff: error while opening optimized patch file")
+		}
+		err = wharf.OptimizePatch(basedir, oldFilter.Filter, basedir, newFilter.Filter, reader, wharf.PreventClosing(f))
+		if err != nil {
+			return errors.Wrap(err, "PrepareDiff: error while creating optimized patch")
+		}
+
+		if err := f.Close(); err != nil {
+			return errors.Wrap(err, "PrepareDiff: error while closing optimized patch file")
+		}
+		if err := reader.Close(); err != nil {
 			return errors.Wrap(err, "PrepareDiff: error while closing patch file")
 		}
 	}
