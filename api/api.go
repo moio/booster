@@ -159,6 +159,9 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return errors.Wrap(err, "Sync: error getting diff preparation hash to primary")
 	}
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("Sync: obtained error from primary: %v", string(bodyBytes))
+	}
 	var prepareResp PrepareDiffResp
 	if err := json.Unmarshal(bodyBytes, &prepareResp); err != nil {
 		return errors.Wrap(err, "Sync: error unmarshaling hash from primary")
@@ -221,7 +224,7 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 
 // abort writes an error (500) response
 func abort(err error, w http.ResponseWriter) {
-	log.Error().Err(err).Stack()
+	log.Error().Err(err).Stack().Send()
 	w.WriteHeader(500)
 	_, err = fmt.Fprintf(w, "Unexpected error: %v\n", err)
 	if err != nil {
