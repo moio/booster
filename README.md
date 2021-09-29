@@ -1,6 +1,8 @@
 # 🚀 booster
 
-Makes synchronization of container images between registries faster.
+Booster is a research project to improve distribution of container images, focusing especially on air-gapped and Edge use cases.
+
+The PoC in this repository allows fast transfer of container images between registries, saving 20% to 80% bandwidth compared to `docker pull`/`docker push`.
 
 [![golangci-lint](https://github.com/moio/booster/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/moio/booster/actions/workflows/golangci-lint.yml)
 
