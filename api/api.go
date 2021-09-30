@@ -68,12 +68,9 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// determine new files, which is all files we have in decompressed form only
-	if err := gzip.DecompressAllIn(basedir); err != nil {
-		return errors.Wrap(err, "PrepareDiff: error while decompressing files")
-	}
-	newFiles, err := gzip.ListDecompressedOnly(basedir)
+	newFiles, err := gzip.DecompressWalking(basedir)
 	if err != nil {
-		return errors.Wrap(err, "PrepareDiff: error while listing decompressed files")
+		return errors.Wrap(err, "PrepareDiff: error while decompressing files")
 	}
 
 	// compute a unique hash for this diff
@@ -138,12 +135,9 @@ func Diff(basedir string, w http.ResponseWriter, r *http.Request) error {
 // and applies it locally
 func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) error {
 	// determine new files, which is all files we have in decompressed form only
-	if err := gzip.DecompressAllIn(path); err != nil {
-		return errors.Wrap(err, "Sync: error while decompressing files")
-	}
-	decompressed, err := gzip.ListDecompressedOnly(path)
+	decompressed, err := gzip.DecompressWalking(path)
 	if err != nil {
-		return errors.Wrap(err, "Sync: error while listing decompressed files")
+		return errors.Wrap(err, "Sync: error while decompressing files")
 	}
 	old := sorted(decompressed)
 

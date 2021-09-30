@@ -16,92 +16,157 @@ import (
 // Suffix is the name appended to files decompressed by this module
 const Suffix = "_UNGZIPPED_BY_BOOSTER"
 
-// DecompressAllIn uncompresses "recompressible" gzip files found in basePath and subdirectories
-func DecompressAllIn(basePath string) error {
-	log.Debug().Msg("Decompressing layer files...")
-	pool := pond.New(runtime.NumCPU(), 1000)
+// DecompressWalking decompresses "recompressible" gzip files found in basePath and subdirectories
+func DecompressWalking(basePath string) (map[string]bool, error) {
+	paths := map[string]bool{}
 	err := filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
+		// skip the booster-specific dir altogether
+		if d.Type().IsDir() && d.Name() == "booster" {
+			return fs.SkipDir
+		}
 		// skip irregular files
 		if !d.Type().IsRegular() {
 			return nil
 		}
-		// skip already decompressed (by name)
+		// skip already decompressed files (by name)
 		if strings.HasSuffix(p, Suffix) {
 			return nil
 		}
-		// skip already decompressed (by decompressed file existence)
-		uncompressedPath := p + Suffix
-		if _, err := os.Stat(uncompressedPath); err == nil {
-			return nil
-		}
 
-		pool.Submit(func() {
-			if err := decompress(p, uncompressedPath); err != nil {
-				log.Error().Err(err)
-			}
-		})
+		relative, rerr := filepath.Rel(basePath, p)
+		if rerr != nil {
+			return errors.Wrapf(rerr, "Cannot compute relative path of %s", p)
+		}
+		paths[relative] = true
+
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pool.StopAndWait()
-	if pool.FailedTasks() != 0 {
-		return errors.Errorf("Error while decompressing files in %v", basePath)
+	return Decompress(paths, basePath), nil
+}
+
+// Decompress decompresses "recompressible" gzip files in the specified map
+// uses up to runtime.NumCPU()*2 goroutines concurrently, one per file
+// returns a map of decompressed or unchanged paths
+func Decompress(paths map[string]bool, basePath string) map[string]bool {
+	log.Debug().Msg("Decompressing layers...")
+
+	processedPaths := make(chan string, runtime.NumCPU()*2)
+	for path := range paths {
+		originalPath := path // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+		uncompressedPath := path + Suffix
+		go func() {
+			if decompress(filepath.Join(basePath, originalPath), filepath.Join(basePath, uncompressedPath)) {
+				// decompression was successful, return path to decompressed file
+				processedPaths <- uncompressedPath
+			} else {
+				// decompression was NOT successful, return the original path
+				processedPaths <- originalPath
+			}
+		}()
 	}
-	return nil
+
+	// make a map of all processed paths
+	result := make(map[string]bool)
+	for i := 0; i < len(paths); i++ {
+		processedPath := <-processedPaths
+		result[processedPath] = true
+
+		// add also parent dirs
+		for processedPath != "." {
+			processedPath = filepath.Dir(processedPath)
+			result[processedPath] = true
+		}
+	}
+
+	return result
 }
 
 // decompress decompresses a gzip file, if recompressible, into destinationPath
-func decompress(sourcePath string, destinationPath string) error {
+// returns true in case decompression was successful, false if the decompression could not happen
+// (or could happen but without recompressibility guarantees)
+// any errors are logged and not returned
+func decompress(sourcePath string, destinationPath string) bool {
+	if _, err := os.Stat(destinationPath); err == nil {
+		// file has been decompressed already
+		return true
+	}
+
 	source, err := os.Open(sourcePath)
 	if err != nil {
-		return errors.Wrapf(err, "could not open to attempt decompression: %v", sourcePath)
+		log.Error().Str("path", sourcePath).Err(err).Msg("could not open to attempt decompression")
+		return false
 	}
 
 	rreader, err := NewRecompressibilityReader(source)
 	if err == gzip.ErrHeader || err == io.EOF {
 		// not a gzip or even empty, situation normal
-		return nil
+		closeAndLog(source)
+		return false
 	}
 	if err != nil {
-		return errors.Wrapf(err, "error while initing decompression: %v", sourcePath)
+		log.Error().Str("path", sourcePath).Err(err).Msg("error while initing decompression")
+		closeAndLog(source)
+		return false
 	}
 
 	destination, err := os.Create(destinationPath)
 	if err != nil {
-		return errors.Wrapf(err, "could not create temporary file to attempt decompression: %v", destinationPath)
+		log.Error().Str("path", destinationPath).Err(err).Msg("could not create temporary file to attempt decompression")
+		closeAndLog(source)
+		return false
 	}
 
 	_, err = io.Copy(destination, rreader)
 	if err != nil {
-		return errors.Wrapf(err, "error while decompressing: %v", sourcePath)
+		log.Error().Str("path", sourcePath).Err(err).Msg("error while decompressing")
+		closeAndLog(destination)
+		removeAndLog(destinationPath)
+		closeAndLog(source)
+		return false
 	}
 
 	err = rreader.Close()
 	if err != nil {
-		return errors.Wrapf(err, "error while closing: %v", sourcePath)
+		log.Error().Str("path", sourcePath).Err(err).Msg("error while closing recompressibility reader")
+		closeAndLog(destination)
+		removeAndLog(destinationPath)
+		closeAndLog(source)
+		return false
 	}
-	err = destination.Close()
-	if err != nil {
-		return errors.Wrapf(err, "error while closing: %v", destinationPath)
-	}
-	err = source.Close()
-	if err != nil {
-		return errors.Wrapf(err, "error while closing: %v", sourcePath)
-	}
+
+	closeAndLog(destination)
+	closeAndLog(source)
 
 	if !rreader.TransparentlyRecompressible() {
 		// decompression worked but the result can't be compressed back
 		// this archive can't be trusted, roll back
-		os.Remove(destinationPath)
+		removeAndLog(destinationPath)
+		return false
 	}
 
-	return nil
+	return true
 }
 
-// RecompressAllIn recompresses any gzip files decompressed by DecompressAllIn
+// closeAndLog closes a file logging any errors
+func closeAndLog(f *os.File) {
+	err := f.Close()
+	if err != nil {
+		log.Error().Str("path", f.Name()).Err(err).Msg("error while closing")
+	}
+}
+
+// removeAndLog removes a file logging any errors
+func removeAndLog(path string) {
+	if err := os.Remove(path); err != nil {
+		log.Error().Str("path", path).Err(err).Msg("error while removing")
+	}
+}
+
+// RecompressAllIn recompresses any gzip files decompressed by Decompress
 func RecompressAllIn(basePath string) error {
 	log.Debug().Msg("Recompressing layer files...")
 	pool := pond.New(runtime.NumCPU(), 1000)
@@ -109,7 +174,7 @@ func RecompressAllIn(basePath string) error {
 		if err != nil {
 			return err
 		}
-		// skip any file other than those created by DecompressAllIn
+		// skip any file other than those created by Decompress
 		if !strings.HasSuffix(p, Suffix) {
 			return nil
 		}
@@ -170,43 +235,6 @@ func compress(sourcePath string, destinationPath string) error {
 	}
 
 	return nil
-}
-
-// ListDecompressedOnly returns a set of all files in a directory
-func ListDecompressedOnly(path string) (map[string]bool, error) {
-	current := map[string]bool{}
-	toRemove := []string{}
-	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relative, err := filepath.Rel(path, p)
-		if err != nil {
-			return errors.Wrapf(err, "Cannot compute relative path of %s", filepath.Join(path, p))
-		}
-
-		// skip the booster-specific dir altogether
-		if strings.Split(relative, string(os.PathSeparator))[0] == "booster" {
-			return nil
-		}
-
-		current[relative] = true
-		if strings.HasSuffix(relative, Suffix) {
-			toRemove = append(toRemove, strings.TrimSuffix(relative, Suffix))
-		}
-		return nil
-	})
-	if err != nil {
-		return make(map[string]bool), err
-	}
-
-	// remove files for which we have an uncompressed copy
-	for _, k := range toRemove {
-		delete(current, k)
-	}
-
-	return current, nil
 }
 
 // Clean deletes decompressed files
