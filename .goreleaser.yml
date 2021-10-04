@@ -13,6 +13,10 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
+    tags:
+      # default backend, gpgme, requires CGO, making it
+      # incompatible with goreleaser
+      - containers_image_openpgp
     binary: "{{ .ProjectName }}_v{{ .Version }}"
 
 dockers:
