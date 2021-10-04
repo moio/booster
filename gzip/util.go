@@ -16,10 +16,10 @@ import (
 // Suffix is the name appended to files decompressed by this module
 const Suffix = "_UNGZIPPED_BY_BOOSTER"
 
-// DecompressWalking decompresses "recompressible" gzip files found in basePath and subdirectories
-func DecompressWalking(basePath string) (map[string]bool, error) {
+// DecompressWalking decompresses "recompressible" gzip files found in root and subdirectories
+func DecompressWalking(root string) (map[string]bool, error) {
 	paths := map[string]bool{}
-	err := filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		// skip the booster-specific dir altogether
 		if d.Type().IsDir() && d.Name() == "booster" {
 			return fs.SkipDir
@@ -33,7 +33,7 @@ func DecompressWalking(basePath string) (map[string]bool, error) {
 			return nil
 		}
 
-		relative, rerr := filepath.Rel(basePath, p)
+		relative, rerr := filepath.Rel(root, p)
 		if rerr != nil {
 			return errors.Wrapf(rerr, "Cannot compute relative path of %s", p)
 		}
@@ -45,13 +45,13 @@ func DecompressWalking(basePath string) (map[string]bool, error) {
 		return nil, err
 	}
 
-	return Decompress(paths, basePath), nil
+	return Decompress(paths, root), nil
 }
 
 // Decompress decompresses "recompressible" gzip files in the specified map
 // uses up to runtime.NumCPU()*2 goroutines concurrently, one per file
 // returns a map of decompressed or unchanged paths
-func Decompress(paths map[string]bool, basePath string) map[string]bool {
+func Decompress(paths map[string]bool, baseDir string) map[string]bool {
 	log.Debug().Msg("Decompressing layers...")
 
 	processedPaths := make(chan string, runtime.NumCPU()*2)
@@ -59,7 +59,7 @@ func Decompress(paths map[string]bool, basePath string) map[string]bool {
 		originalPath := path // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
 		uncompressedPath := path + Suffix
 		go func() {
-			if decompress(filepath.Join(basePath, originalPath), filepath.Join(basePath, uncompressedPath)) {
+			if decompress(filepath.Join(baseDir, originalPath), filepath.Join(baseDir, uncompressedPath)) {
 				// decompression was successful, return path to decompressed file
 				processedPaths <- uncompressedPath
 			} else {
