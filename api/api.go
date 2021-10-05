@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -164,7 +165,9 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	h := prepareResp.Hash
 	log.Info().Str("hash", h[:10]).Msg("Downloading and applying patch...")
 
-	size, err := wharf.Apply(primary+"/diff?hash="+h, path)
+	tempDir := filepath.Join(os.TempDir(), "booster", "staging")
+
+	size, err := wharf.Apply(primary+"/diff?hash="+h, path, tempDir)
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while applying patch")
 	}

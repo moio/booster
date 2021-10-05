@@ -31,17 +31,19 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return err
 	}
 
-	oldFiles, err := downloadAll(oldImages, tempDir)
+	imageTempDir := filepath.Join(tempDir, "images")
+	oldFiles, err := downloadAll(oldImages, imageTempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
 	}
-	uncompressedOldFiles := gzip.Decompress(oldFiles, tempDir)
 
-	newFiles, err := downloadAll(newImages, tempDir)
+	uncompressedOldFiles := gzip.Decompress(oldFiles, imageTempDir)
+
+	newFiles, err := downloadAll(newImages, imageTempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
 	}
-	uncompressedNewFiles := gzip.Decompress(newFiles, tempDir)
+	uncompressedNewFiles := gzip.Decompress(newFiles, imageTempDir)
 
 	log.Info().Str("name", patchPath).Msg("Creating patch...")
 
@@ -49,9 +51,9 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 	if err != nil {
 		return errors.Wrap(err, "Error while opening patch file")
 	}
-	oldFilter := wharf.NewAcceptListFilter(tempDir, uncompressedOldFiles)
-	newFilter := wharf.NewAcceptListFilter(tempDir, uncompressedNewFiles)
-	err = wharf.CreatePatch(tempDir, oldFilter.Filter, tempDir, newFilter.Filter, wharf.PreventClosing(f))
+	oldFilter := wharf.NewAcceptListFilter(imageTempDir, uncompressedOldFiles)
+	newFilter := wharf.NewAcceptListFilter(imageTempDir, uncompressedNewFiles)
+	err = wharf.CreatePatch(imageTempDir, oldFilter.Filter, imageTempDir, newFilter.Filter, wharf.PreventClosing(f))
 	if err != nil {
 		log.Err(err).Msg("Error during patch creation")
 	}

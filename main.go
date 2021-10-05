@@ -65,9 +65,9 @@ func main() {
 			Action:    diff,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
-					Name:  "path",
-					Usage: "temporary path for images",
-					Value: "tmp",
+					Name:  "temp-dir",
+					Usage: "temporary directory for image downloads",
+					Value: "/tmp/booster",
 				},
 				&cli.StringFlag{
 					Name:  "output",
@@ -103,16 +103,12 @@ func diff(ctx *cli.Context) error {
 	oldPath := ctx.Args().Get(0)
 	newPath := ctx.Args().Get(1)
 
-	tempDir := ctx.String("path")
-	info, err := os.Stat(tempDir)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return errors.Errorf("%v is not a directory", tempDir)
+	tempDir := ctx.String("temp-dir")
+	if err := os.MkdirAll(tempDir, 0700); err != nil {
+		return errors.Wrap(err, "Error while temporary directory")
 	}
 
-	tempDir, err = filepath.EvalSymlinks(tempDir)
+	tempDir, err := filepath.EvalSymlinks(tempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Could not evaluate symlinks for %v", tempDir)
 	}
