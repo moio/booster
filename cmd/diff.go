@@ -31,6 +31,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return err
 	}
 
+	log.Info().Str("list", oldList).Msg("Downloading images...")
 	imageTempDir := filepath.Join(tempDir, "images")
 	oldFiles, err := downloadAll(oldImages, imageTempDir)
 	if err != nil {
@@ -39,6 +40,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 
 	uncompressedOldFiles := gzip.Decompress(oldFiles, imageTempDir)
 
+	log.Info().Str("list", newList).Msg("Downloading images...")
 	newFiles, err := downloadAll(newImages, imageTempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
