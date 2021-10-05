@@ -31,7 +31,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return err
 	}
 
-	log.Info().Str("list", oldList).Msg("Downloading images...")
+	log.Info().Str("list", oldList).Msg("Processing")
 	imageTempDir := filepath.Join(tempDir, "images")
 	oldFiles, err := downloadAll(oldImages, imageTempDir)
 	if err != nil {
@@ -40,7 +40,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 
 	uncompressedOldFiles := gzip.Decompress(oldFiles, imageTempDir)
 
-	log.Info().Str("list", newList).Msg("Downloading images...")
+	log.Info().Str("list", newList).Msg("Processing")
 	newFiles, err := downloadAll(newImages, imageTempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
@@ -52,7 +52,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 	allUncompressedFiles["oci-layout"] = true
 	allUncompressedFiles["index.json"] = true
 
-	log.Info().Str("name", patchPath).Msg("Creating patch...")
+	log.Info().Str("name", patchPath).Msg("Creating patch")
 
 	f, err := os.Create(patchPath)
 	if err != nil {
@@ -113,7 +113,7 @@ func downloadAll(images []string, dir string) (map[string]bool, error) {
 // download downloads an image into dir
 // returns a map to files that have been downloaded
 func download(image string, dir string) ([]string, error) {
-	log.Debug().Str("downloading_image", image).Send()
+	log.Info().Str("image", image).Msg("Downloading")
 
 	policy, err := signature.DefaultPolicy(nil)
 	if err != nil {

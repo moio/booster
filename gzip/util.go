@@ -52,7 +52,7 @@ func DecompressWalking(root string) (map[string]bool, error) {
 // uses up to runtime.NumCPU()*2 goroutines concurrently, one per file
 // returns a map of decompressed or unchanged paths
 func Decompress(paths map[string]bool, baseDir string) map[string]bool {
-	log.Debug().Msg("Decompressing layers...")
+	log.Info().Msg("Decompressing layers...")
 
 	processedPaths := make(chan string, runtime.NumCPU()*2)
 	for path := range paths {
@@ -168,7 +168,7 @@ func removeAndLog(path string) {
 
 // RecompressAllIn recompresses any gzip files decompressed by Decompress
 func RecompressAllIn(basePath string) error {
-	log.Debug().Msg("Recompressing layer files...")
+	log.Info().Msg("Recompressing layer files...")
 	pool := pond.New(runtime.NumCPU(), 1000)
 	err := filepath.WalkDir(basePath, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {

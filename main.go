@@ -76,6 +76,19 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:      "apply",
+			Usage:     "applies a diff file to a container registry",
+			ArgsUsage: "OLD_LIST_FILE NEW_LIST_FILE DIFF_FILE DESTINATION",
+			Action:    apply,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "temp-dir",
+					Usage: "temporary directory for image downloads",
+					Value: "/tmp/booster",
+				},
+			},
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -123,4 +136,25 @@ func diff(ctx *cli.Context) error {
 
 	return cmd.Diff(oldPath, newPath, tempDir, output)
 }
+
+func apply(ctx *cli.Context) error {
+	if ctx.Args().Len() != 4 {
+		cli.ShowSubcommandHelpAndExit(ctx, 1)
+	}
+	oldPath := ctx.Args().Get(0)
+	newPath := ctx.Args().Get(1)
+	diffPath := ctx.Args().Get(2)
+	destination := ctx.Args().Get(3)
+
+	tempDir := ctx.String("temp-dir")
+	if err := os.MkdirAll(tempDir, 0700); err != nil {
+		return errors.Wrap(err, "Error while creating temporary directory")
+	}
+
+	tempDir, err := filepath.EvalSymlinks(tempDir)
+	if err != nil {
+		return errors.Wrapf(err, "Could not evaluate symlinks for %v", tempDir)
+	}
+
+	return cmd.Apply(oldPath, newPath, diffPath, tempDir, destination)
 }

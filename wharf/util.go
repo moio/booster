@@ -17,6 +17,20 @@ func NewAcceptListFilter(basedir string, accepted map[string]bool) *AcceptListFi
 	return &AcceptListFilter{basedir: basedir, accepted: accepted}
 }
 
+// MergeAcceptLists merges maps used in AcceptListFilters
+func MergeAcceptLists(a map[string]bool, b map[string]bool) map[string]bool {
+	result := map[string]bool{}
+	for k, v := range a {
+		result[k] = v
+	}
+
+	for k, v := range b {
+		result[k] = v
+	}
+
+	return result
+}
+
 func (e *AcceptListFilter) Filter(name string) tlc.FilterResult {
 	relpath, _ := filepath.Rel(e.basedir, name)
 	if e.accepted[relpath] {
