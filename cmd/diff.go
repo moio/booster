@@ -68,7 +68,45 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return errors.Wrap(err, "Error while closing patch file")
 	}
 
+	oldSize := size(oldFiles, imageTempDir)
+	uncompressedOldSize := size(uncompressedOldFiles, imageTempDir)
+	newSize := size(newFiles, imageTempDir)
+	uncompressedNewSize := size(uncompressedNewFiles, imageTempDir)
+	pushPullPatchSize := size(minus(newFiles, oldFiles), imageTempDir)
+	wharfPatchSize := size(map[string]bool{patchPath: true}, "")
+	saving := (1 - (float32(wharfPatchSize) / float32(pushPullPatchSize))) * 100
+
+	log.Info().Msgf("All done!")
+
+	log.Info().Msgf("Old images: %5v MB (%5v MB uncompressed)", oldSize / 1048576, uncompressedOldSize / 1048576)
+	log.Info().Msgf("New images: %5v MB (%5v MB uncompressed)", newSize / 1048576, uncompressedNewSize / 1048576)
+	log.Info().Msgf("Push and Pull update: %5v MB", pushPullPatchSize / 1048576)
+	log.Info().Msgf("Booster patch size:   %5v MB", wharfPatchSize / 1048576)
+	log.Info().Msgf("Saves:                %5.0f %%", saving)
+
 	return nil
+}
+
+func size(files map[string]bool, dir string) int64 {
+	var result int64
+	for file := range files {
+		info, err := os.Stat(filepath.Join(dir,file))
+		if err != nil {
+			log.Error().Str("file", file).Msg("Could not stat")
+		}
+		result += info.Size()
+	}
+	return result
+}
+
+func minus(a map[string]bool, b map[string]bool) map[string]bool {
+	result := map[string]bool{}
+	for k := range a {
+		if !b[k] {
+			result[k] = true
+		}
+	}
+	return result
 }
 
 // readLines reads a file and returns a list of strings, one per line
