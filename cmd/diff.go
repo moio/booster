@@ -47,6 +47,11 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 	}
 	uncompressedNewFiles := gzip.Decompress(newFiles, imageTempDir)
 
+	allUncompressedFiles := wharf.MergeAcceptLists(uncompressedOldFiles, uncompressedNewFiles)
+	// add compulsory files from the OCI format
+	allUncompressedFiles["oci-layout"] = true
+	allUncompressedFiles["index.json"] = true
+
 	log.Info().Str("name", patchPath).Msg("Creating patch...")
 
 	f, err := os.Create(patchPath)
@@ -54,7 +59,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return errors.Wrap(err, "Error while opening patch file")
 	}
 	oldFilter := wharf.NewAcceptListFilter(imageTempDir, uncompressedOldFiles)
-	newFilter := wharf.NewAcceptListFilter(imageTempDir, uncompressedNewFiles)
+	newFilter := wharf.NewAcceptListFilter(imageTempDir, allUncompressedFiles)
 	err = wharf.CreatePatch(imageTempDir, oldFilter.Filter, imageTempDir, newFilter.Filter, wharf.PreventClosing(f))
 	if err != nil {
 		log.Err(err).Msg("Error during patch creation")
@@ -157,10 +162,6 @@ func download(image string, dir string) ([]string, error) {
 // see https://github.com/opencontainers/image-spec/blob/v1.0.1/image-layout.md#content
 func manifestFiles(manifest manifest.Manifest, manifestDigest digest.Digest, basePath string) []string {
 	result := []string{}
-	// compulsory files from format
-	result = append(result, path.Join(basePath, "oci-layout"))
-	result = append(result, path.Join(basePath, "index.json"))
-
 	// manifest file
 	manifestPath := path.Join(basePath, "blobs", manifestDigest.Algorithm().String(), manifestDigest.Encoded())
 	result = append(result, manifestPath)
