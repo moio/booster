@@ -37,28 +37,6 @@ func main() {
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
 		{
-			Name:   "serve",
-			Usage:  "serves the booster HTTP API",
-			Action: serve,
-			Flags: []cli.Flag{
-				&cli.IntFlag{
-					Name:  "port",
-					Usage: "TCP port for the API (default 5000)",
-					Value: 5000,
-				},
-				&cli.StringFlag{
-					Name:  "path",
-					Usage: "path of the base registry directory (default /var/lib/registry)",
-					Value: "/var/lib/registry",
-				},
-				&cli.StringFlag{
-					Name:  "primary",
-					Usage: "http address of the primary, if any",
-					Value: "",
-				},
-			},
-		},
-		{
 			Name:      "diff",
 			Usage:     "generates a patch between sets of images",
 			ArgsUsage: "OLD_LIST_FILE NEW_LIST_FILE",
@@ -86,6 +64,28 @@ func main() {
 					Name:  "temp-dir",
 					Usage: "temporary directory for image downloads",
 					Value: "/tmp/booster",
+				},
+			},
+		},
+		{
+			Name:   "serve",
+			Usage:  "serves the booster HTTP API",
+			Action: serve,
+			Flags: []cli.Flag{
+				&cli.IntFlag{
+					Name:  "port",
+					Usage: "TCP port for the API (default 5000)",
+					Value: 5000,
+				},
+				&cli.StringFlag{
+					Name:  "path",
+					Usage: "path of the base registry directory (default /var/lib/registry)",
+					Value: "/var/lib/registry",
+				},
+				&cli.StringFlag{
+					Name:  "primary",
+					Usage: "http address of the primary, if any",
+					Value: "",
 				},
 			},
 		},
@@ -131,7 +131,7 @@ func diff(ctx *cli.Context) error {
 		// autogenerate
 		o := strings.TrimSuffix(filepath.Base(oldPath), filepath.Ext(oldPath))
 		n := strings.TrimSuffix(filepath.Base(newPath), filepath.Ext(newPath))
-		output = fmt.Sprintf("%v-%v", o, n)
+		output = fmt.Sprintf("%v-to-%v.patch", o, n)
 	}
 
 	return cmd.Diff(oldPath, newPath, tempDir, output)

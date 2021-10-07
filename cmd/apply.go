@@ -52,6 +52,8 @@ func Apply(oldList string, newList string, patchPath string, tempDir string, des
 		}
 	}
 
+	log.Info().Msg("All done!")
+
 	return nil
 }
 
@@ -86,9 +88,9 @@ func upload(image string, sourcePath string, destinationRegistry string) error {
 		DestinationCtx:                        &types.SystemContext{DockerInsecureSkipTLSVerify: types.NewOptionalBool(true)},
 		OptimizeDestinationImageAlreadyExists: true,
 	})
-
 	if err != nil {
 		return errors.Wrapf(err, "Error copying image: %v", image)
 	}
+
 	return nil
 }
