@@ -17,7 +17,7 @@ builds:
       # default backend, gpgme, requires CGO, making it
       # incompatible with goreleaser
       - containers_image_openpgp
-    binary: "{{ .ProjectName }}_v{{ .Version }}"
+    binary: "{{ .ProjectName }}"
 
 dockers:
   - image_templates:
