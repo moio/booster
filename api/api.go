@@ -62,10 +62,9 @@ type PrepareDiffResp struct {
 // The result is cached in a temporary directory by hash, returned in the response body
 func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	// determine old files, passed as parameter
-	oldFiles := util.NewFileSet(basedir)
-	old := r.FormValue("old")
-	for _, f := range strings.Split(old, "\n") {
-		oldFiles.Add(f)
+	oldFiles := util.NewFileSet()
+	for _, f := range strings.Split(r.FormValue("old"), "\n") {
+		oldFiles.Add(path.Join(basedir, f))
 	}
 
 	// determine new files, which is all files we have in decompressed form only
@@ -140,12 +139,16 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while decompressing files")
 	}
+	relative, err := decompressed.Relative(path)
+	if err != nil {
+		return errors.Wrap(err, "Sync: error while computing request to primary")
+	}
 
 	log.Info().Str("primary", primary).Msg("Requesting to prepare patch...")
 
 	resp, err := http.PostForm(
 		primary+"/prepare_diff",
-		url.Values{"old": {strings.Join(decompressed.Sorted(), "\n")}})
+		url.Values{"old": {strings.Join(relative.Sorted(), "\n")}})
 	if err != nil {
 		return errors.Wrap(err, "Sync: error requesting diff preparation to primary")
 	}

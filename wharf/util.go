@@ -3,7 +3,6 @@ package wharf
 import (
 	"github.com/itchio/lake/tlc"
 	"github.com/moio/booster/util"
-	"path/filepath"
 )
 
 // FileSetFilter only keeps files from an util.FileSet
@@ -18,8 +17,7 @@ func NewFileSetFilter(set *util.FileSet) *FileSetFilter {
 
 // Filter implements tlc.FilterFunc
 func (e *FileSetFilter) Filter(name string) tlc.FilterResult {
-	rel, _ := filepath.Rel(e.set.BaseDir(), name)
-	if e.set.Present(rel) {
+	if e.set.Present(name) {
 		return tlc.FilterKeep
 	}
 	return tlc.FilterIgnore

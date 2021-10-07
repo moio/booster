@@ -19,7 +19,7 @@ const Suffix = "_UNGZIPPED_BY_BOOSTER"
 
 // DecompressWalking decompresses "recompressible" gzip files found in root and subdirectories
 func DecompressWalking(root string) (*util.FileSet, error) {
-	paths := util.NewFileSet(root)
+	paths := util.NewFileSet()
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		// skip the booster-specific dir altogether
 		if d.Type().IsDir() && d.Name() == "booster" {
@@ -34,11 +34,7 @@ func DecompressWalking(root string) (*util.FileSet, error) {
 			return nil
 		}
 
-		relative, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return errors.Wrapf(rerr, "Cannot compute relative path of %s", p)
-		}
-		paths.Add(relative)
+		paths.Add(p)
 
 		return nil
 	})
@@ -56,10 +52,10 @@ func Decompress(files *util.FileSet) *util.FileSet {
 	log.Info().Msg("Decompressing layers...")
 
 	processedPaths := make(chan string, runtime.NumCPU()*2)
-	files.Walk(func(basedir string, path string) {
+	files.Walk(func(path string) {
 		uncompressedPath := path + Suffix
 		go func() {
-			if decompress(filepath.Join(basedir, path), filepath.Join(basedir, uncompressedPath)) {
+			if decompress(path, uncompressedPath) {
 				// decompression was successful, return path to decompressed file
 				processedPaths <- uncompressedPath
 			} else {
@@ -70,13 +66,13 @@ func Decompress(files *util.FileSet) *util.FileSet {
 	})
 
 	// make a map of all processed paths
-	result := util.NewFileSet(files.BaseDir())
+	result := util.NewFileSet()
 	for i := 0; i < files.Len(); i++ {
 		processedPath := <-processedPaths
 		result.Add(processedPath)
 
 		// add also parent dirs
-		for processedPath != "." {
+		for processedPath != filepath.Dir(processedPath) {
 			processedPath = filepath.Dir(processedPath)
 			result.Add(processedPath)
 		}

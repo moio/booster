@@ -50,8 +50,8 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 
 	allUncompressedFiles := util.Merge(uncompressedOldFiles, uncompressedNewFiles)
 	// add compulsory files from the OCI format
-	allUncompressedFiles.Add("oci-layout")
-	allUncompressedFiles.Add("index.json")
+	allUncompressedFiles.Add(path.Join(imageTempDir, "oci-layout"))
+	allUncompressedFiles.Add(path.Join(imageTempDir, "index.json"))
 
 	log.Info().Str("name", patchPath).Msg("Creating patch")
 
@@ -74,7 +74,7 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 	newSize := newFiles.TotalFileSize()
 	uncompressedNewSize := uncompressedNewFiles.TotalFileSize()
 	pushPullPatchSize := util.Minus(newFiles, oldFiles).TotalFileSize()
-	wharfPatchSize := util.NewFileSetWith("", patchPath).TotalFileSize()
+	wharfPatchSize := util.NewFileSetWith(patchPath).TotalFileSize()
 	saving := (1 - (float32(wharfPatchSize) / float32(pushPullPatchSize))) * 100
 
 	log.Info().Msgf("All done!")
@@ -110,18 +110,14 @@ func readLines(path string) ([]string, error) {
 
 // downloadAll downloads all images into dir
 func downloadAll(images []string, dir string) (*util.FileSet, error) {
-	fileSet := util.NewFileSet(dir)
+	fileSet := util.NewFileSet()
 	for _, image := range images {
 		files, err := download(image, dir)
 		if err != nil {
 			return nil, err
 		}
 		for _, file := range files {
-			rel, err := filepath.Rel(dir, file)
-			if err != nil {
-				return nil, errors.Wrapf(err, "error while downloading image %v", image)
-			}
-			fileSet.Add(rel)
+			fileSet.Add(file)
 		}
 	}
 	return fileSet, nil
