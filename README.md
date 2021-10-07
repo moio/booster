@@ -7,14 +7,52 @@ The PoC in this repository allows fast transfer of container images between regi
 [![golangci-lint](https://github.com/moio/booster/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/moio/booster/actions/workflows/golangci-lint.yml)
 
 
-## Requirements
+## Command-line mode
 
- - Two or more container registries to synchronize
- - Access to their backing storage directory (for now)
+Booster's `diff` allows to create "patches" from an image set to a (newer) image set:
+
+```shell
+> booster diff old.txt new.txt
+> ...
+INF Processing list=old.txt
+INF Downloading image=ubuntu:bionic-20210615.1
+...
+11:10AM INF Processing list=new.txt
+11:10AM INF Downloading image=ubuntu:bionic-20210702
+...
+11:10AM INF Creating patch name=old-to-new.patch
+11:10AM INF All done!
+11:10AM INF Old images:    25 MB (   62 MB uncompressed)
+11:10AM INF New images:    25 MB (   62 MB uncompressed)
+11:10AM INF Push and Pull update:    25 MB
+11:10AM INF Booster patch size:       2 MB
+11:10AM INF Saves:                   90 %
+```
+
+Booster's `apply` applies a patch to a registry (that hosts the old image set):
+
+```shell
+> booster apply old.txt new.txt old-to-new.patch localhost:5001
+> ...
+11:27AM INF Processing list=old.txt
+11:27AM INF Downloading image=ubuntu:bionic-20210615.1
+11:27AM INF Decompressing layers...
+11:27AM INF Applying patch=old-to-new.patch
+11:27AM INF Recompressing layer files...
+11:27AM INF Uploading image=ubuntu:bionic-20210702
+11:27AM INF All done!
+```
 
 ## Demo
 
-Set up a demo environment with two local Registry containers, each with its booster:
+[![asciicast](https://asciinema.org/a/440619.svg)](https://asciinema.org/a/440619)
+
+
+## Companion container mode
+
+Booster also comes as a container that can run side-by-side with a Registry. Two Booster instances can sync images between those Registries in an optimized way.
+
+The following commands set up a demo environment with two local Registry containers, each with its booster:
 ```shell
 
 # Start a "primary" registry backed by a local directory
