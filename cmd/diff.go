@@ -10,6 +10,7 @@ import (
 	"github.com/containers/image/v5/oci/layout"
 	"github.com/containers/image/v5/signature"
 	"github.com/moio/booster/gzip"
+	"github.com/moio/booster/util"
 	"github.com/moio/booster/wharf"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -38,19 +39,19 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return errors.Wrapf(err, "Error while computing diff")
 	}
 
-	uncompressedOldFiles := gzip.Decompress(oldFiles, imageTempDir)
+	uncompressedOldFiles := gzip.Decompress(oldFiles)
 
 	log.Info().Str("list", newList).Msg("Processing")
 	newFiles, err := downloadAll(newImages, imageTempDir)
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
 	}
-	uncompressedNewFiles := gzip.Decompress(newFiles, imageTempDir)
+	uncompressedNewFiles := gzip.Decompress(newFiles)
 
-	allUncompressedFiles := wharf.MergeAcceptLists(uncompressedOldFiles, uncompressedNewFiles)
+	allUncompressedFiles := util.Merge(uncompressedOldFiles, uncompressedNewFiles)
 	// add compulsory files from the OCI format
-	allUncompressedFiles["oci-layout"] = true
-	allUncompressedFiles["index.json"] = true
+	allUncompressedFiles.Add("oci-layout")
+	allUncompressedFiles.Add("index.json")
 
 	log.Info().Str("name", patchPath).Msg("Creating patch")
 
@@ -58,9 +59,9 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 	if err != nil {
 		return errors.Wrap(err, "Error while opening patch file")
 	}
-	oldFilter := wharf.NewAcceptListFilter(imageTempDir, uncompressedOldFiles)
-	newFilter := wharf.NewAcceptListFilter(imageTempDir, allUncompressedFiles)
-	err = wharf.CreatePatch(imageTempDir, oldFilter.Filter, imageTempDir, newFilter.Filter, wharf.PreventClosing(f))
+	oldFilter := wharf.NewFileSetFilter(uncompressedOldFiles)
+	newFilter := wharf.NewFileSetFilter(allUncompressedFiles)
+	err = wharf.CreatePatch(imageTempDir, oldFilter.Filter, imageTempDir, newFilter.Filter, util.PreventClosing(f))
 	if err != nil {
 		log.Err(err).Msg("Error during patch creation")
 	}
@@ -68,45 +69,23 @@ func Diff(oldList string, newList string, tempDir string, patchPath string) erro
 		return errors.Wrap(err, "Error while closing patch file")
 	}
 
-	oldSize := size(oldFiles, imageTempDir)
-	uncompressedOldSize := size(uncompressedOldFiles, imageTempDir)
-	newSize := size(newFiles, imageTempDir)
-	uncompressedNewSize := size(uncompressedNewFiles, imageTempDir)
-	pushPullPatchSize := size(minus(newFiles, oldFiles), imageTempDir)
-	wharfPatchSize := size(map[string]bool{patchPath: true}, "")
+	oldSize := oldFiles.TotalFileSize()
+	uncompressedOldSize := uncompressedOldFiles.TotalFileSize()
+	newSize := newFiles.TotalFileSize()
+	uncompressedNewSize := uncompressedNewFiles.TotalFileSize()
+	pushPullPatchSize := util.Minus(newFiles, oldFiles).TotalFileSize()
+	wharfPatchSize := util.NewFileSetWith("", patchPath).TotalFileSize()
 	saving := (1 - (float32(wharfPatchSize) / float32(pushPullPatchSize))) * 100
 
 	log.Info().Msgf("All done!")
 
-	log.Info().Msgf("Old images: %5v MB (%5v MB uncompressed)", oldSize / 1048576, uncompressedOldSize / 1048576)
-	log.Info().Msgf("New images: %5v MB (%5v MB uncompressed)", newSize / 1048576, uncompressedNewSize / 1048576)
-	log.Info().Msgf("Push and Pull update: %5v MB", pushPullPatchSize / 1048576)
-	log.Info().Msgf("Booster patch size:   %5v MB", wharfPatchSize / 1048576)
+	log.Info().Msgf("Old images: %5v MB (%5v MB uncompressed)", oldSize/1048576, uncompressedOldSize/1048576)
+	log.Info().Msgf("New images: %5v MB (%5v MB uncompressed)", newSize/1048576, uncompressedNewSize/1048576)
+	log.Info().Msgf("Push and Pull update: %5v MB", pushPullPatchSize/1048576)
+	log.Info().Msgf("Booster patch size:   %5v MB", wharfPatchSize/1048576)
 	log.Info().Msgf("Saves:                %5.0f %%", saving)
 
 	return nil
-}
-
-func size(files map[string]bool, dir string) int64 {
-	var result int64
-	for file := range files {
-		info, err := os.Stat(filepath.Join(dir,file))
-		if err != nil {
-			log.Error().Str("file", file).Msg("Could not stat")
-		}
-		result += info.Size()
-	}
-	return result
-}
-
-func minus(a map[string]bool, b map[string]bool) map[string]bool {
-	result := map[string]bool{}
-	for k := range a {
-		if !b[k] {
-			result[k] = true
-		}
-	}
-	return result
 }
 
 // readLines reads a file and returns a list of strings, one per line
@@ -130,8 +109,8 @@ func readLines(path string) ([]string, error) {
 }
 
 // downloadAll downloads all images into dir
-func downloadAll(images []string, dir string) (map[string]bool, error) {
-	fileSet := map[string]bool{}
+func downloadAll(images []string, dir string) (*util.FileSet, error) {
+	fileSet := util.NewFileSet(dir)
 	for _, image := range images {
 		files, err := download(image, dir)
 		if err != nil {
@@ -142,7 +121,7 @@ func downloadAll(images []string, dir string) (map[string]bool, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "error while downloading image %v", image)
 			}
-			fileSet[rel] = true
+			fileSet.Add(rel)
 		}
 	}
 	return fileSet, nil

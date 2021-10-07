@@ -3,6 +3,7 @@ package gzip
 import (
 	"compress/gzip"
 	"github.com/alitto/pond"
+	"github.com/moio/booster/util"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"io"
@@ -17,8 +18,8 @@ import (
 const Suffix = "_UNGZIPPED_BY_BOOSTER"
 
 // DecompressWalking decompresses "recompressible" gzip files found in root and subdirectories
-func DecompressWalking(root string) (map[string]bool, error) {
-	paths := map[string]bool{}
+func DecompressWalking(root string) (*util.FileSet, error) {
+	paths := util.NewFileSet(root)
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		// skip the booster-specific dir altogether
 		if d.Type().IsDir() && d.Name() == "booster" {
@@ -37,7 +38,7 @@ func DecompressWalking(root string) (map[string]bool, error) {
 		if rerr != nil {
 			return errors.Wrapf(rerr, "Cannot compute relative path of %s", p)
 		}
-		paths[relative] = true
+		paths.Add(relative)
 
 		return nil
 	})
@@ -45,40 +46,39 @@ func DecompressWalking(root string) (map[string]bool, error) {
 		return nil, err
 	}
 
-	return Decompress(paths, root), nil
+	return Decompress(paths), nil
 }
 
 // Decompress decompresses "recompressible" gzip files in the specified map
 // uses up to runtime.NumCPU()*2 goroutines concurrently, one per file
 // returns a map of decompressed or unchanged paths
-func Decompress(paths map[string]bool, baseDir string) map[string]bool {
+func Decompress(files *util.FileSet) *util.FileSet {
 	log.Info().Msg("Decompressing layers...")
 
 	processedPaths := make(chan string, runtime.NumCPU()*2)
-	for path := range paths {
-		originalPath := path // https://github.com/golang/go/wiki/CommonMistakes#using-goroutines-on-loop-iterator-variables
+	files.Walk(func(basedir string, path string) {
 		uncompressedPath := path + Suffix
 		go func() {
-			if decompress(filepath.Join(baseDir, originalPath), filepath.Join(baseDir, uncompressedPath)) {
+			if decompress(filepath.Join(basedir, path), filepath.Join(basedir, uncompressedPath)) {
 				// decompression was successful, return path to decompressed file
 				processedPaths <- uncompressedPath
 			} else {
 				// decompression was NOT successful, return the original path
-				processedPaths <- originalPath
+				processedPaths <- path
 			}
 		}()
-	}
+	})
 
 	// make a map of all processed paths
-	result := make(map[string]bool)
-	for i := 0; i < len(paths); i++ {
+	result := util.NewFileSet(files.BaseDir())
+	for i := 0; i < files.Len(); i++ {
 		processedPath := <-processedPaths
-		result[processedPath] = true
+		result.Add(processedPath)
 
 		// add also parent dirs
 		for processedPath != "." {
 			processedPath = filepath.Dir(processedPath)
-			result[processedPath] = true
+			result.Add(processedPath)
 		}
 	}
 

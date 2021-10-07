@@ -4,6 +4,7 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"github.com/moio/booster/util"
 	"github.com/rs/zerolog/log"
 	"io"
 	"io/ioutil"
@@ -13,7 +14,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/moio/booster/gzip"
@@ -62,10 +62,10 @@ type PrepareDiffResp struct {
 // The result is cached in a temporary directory by hash, returned in the response body
 func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 	// determine old files, passed as parameter
-	oldFiles := map[string]bool{}
+	oldFiles := util.NewFileSet(basedir)
 	old := r.FormValue("old")
 	for _, f := range strings.Split(old, "\n") {
-		oldFiles[f] = true
+		oldFiles.Add(f)
 	}
 
 	// determine new files, which is all files we have in decompressed form only
@@ -93,9 +93,9 @@ func PrepareDiff(basedir string, w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return errors.Wrap(err, "PrepareDiff: error while opening patch file")
 		}
-		oldFilter := wharf.NewAcceptListFilter(basedir, oldFiles)
-		newFilter := wharf.NewAcceptListFilter(basedir, newFiles)
-		err = wharf.CreatePatch(basedir, oldFilter.Filter, basedir, newFilter.Filter, wharf.PreventClosing(f))
+		oldFilter := wharf.NewFileSetFilter(oldFiles)
+		newFilter := wharf.NewFileSetFilter(newFiles)
+		err = wharf.CreatePatch(basedir, oldFilter.Filter, basedir, newFilter.Filter, util.PreventClosing(f))
 		if err != nil {
 			return errors.Wrap(err, "PrepareDiff: error while creating patch")
 		}
@@ -140,13 +140,12 @@ func Sync(path string, primary string, w http.ResponseWriter, r *http.Request) e
 	if err != nil {
 		return errors.Wrap(err, "Sync: error while decompressing files")
 	}
-	old := sorted(decompressed)
 
 	log.Info().Str("primary", primary).Msg("Requesting to prepare patch...")
 
 	resp, err := http.PostForm(
 		primary+"/prepare_diff",
-		url.Values{"old": {strings.Join(old, "\n")}})
+		url.Values{"old": {strings.Join(decompressed.Sorted(), "\n")}})
 	if err != nil {
 		return errors.Wrap(err, "Sync: error requesting diff preparation to primary")
 	}
@@ -189,21 +188,10 @@ func Cleanup(basedir string, writer http.ResponseWriter, request *http.Request) 
 	return gzip.Clean(basedir)
 }
 
-// sorted turns a path set into a path list
-func sorted(pathSet map[string]bool) []string {
-	result := []string{}
-	for k := range pathSet {
-		result = append(result, k)
-	}
-	sort.Strings(result)
-
-	return result
-}
-
 // hash computes a hash from sets of paths
-func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
+func hash(oldFiles *util.FileSet, newFiles *util.FileSet) (string, error) {
 	h := sha512.New()
-	for _, f := range sorted(oldMap) {
+	for _, f := range oldFiles.Sorted() {
 		if _, err := io.WriteString(h, f); err != nil {
 			return "", err
 		}
@@ -211,7 +199,7 @@ func hash(oldMap map[string]bool, newMap map[string]bool) (string, error) {
 	if _, err := io.WriteString(h, "//////"); err != nil {
 		return "", err
 	}
-	for _, f := range sorted(newMap) {
+	for _, f := range newFiles.Sorted() {
 		if _, err := io.WriteString(h, f); err != nil {
 			return "", err
 		}

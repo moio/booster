@@ -32,7 +32,7 @@ func Apply(oldList string, newList string, patchPath string, tempDir string, des
 	if err != nil {
 		return errors.Wrapf(err, "Error while computing diff")
 	}
-	gzip.Decompress(oldFiles, imageTempDir)
+	gzip.Decompress(oldFiles)
 
 	log.Info().Str("patch", patchPath).Msg("Applying")
 
@@ -56,7 +56,7 @@ func Apply(oldList string, newList string, patchPath string, tempDir string, des
 }
 
 func upload(image string, sourcePath string, destinationRegistry string) error {
-	log.Debug().Str("uploading_image", image).Send()
+	log.Info().Str("image", image).Msg("Uploading")
 
 	policy, err := signature.DefaultPolicy(nil)
 	if err != nil {
@@ -83,7 +83,7 @@ func upload(image string, sourcePath string, destinationRegistry string) error {
 
 	_, err = copy.Image(context.Background(), policyContext, destRef, srcRef, &copy.Options{
 		// HACK: allow http, should be passed explicitly via commandline switch
-		DestinationCtx: &types.SystemContext{DockerInsecureSkipTLSVerify: types.NewOptionalBool(true)},
+		DestinationCtx:                        &types.SystemContext{DockerInsecureSkipTLSVerify: types.NewOptionalBool(true)},
 		OptimizeDestinationImageAlreadyExists: true,
 	})
 
